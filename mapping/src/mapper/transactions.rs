@@ -40,8 +40,7 @@ pub fn map_transaction_inputs(
     let tx_verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
     transaction
         .inputs
-        .to_owned()
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(i, input)| SqlTransactionInput {
             transaction_id: tx_verbose_data.transaction_id.into(),
@@ -63,8 +62,7 @@ pub fn map_transaction_outputs(
     let tx_verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
     transaction
         .outputs
-        .to_owned()
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(i, output)| {
             let verbose_data = output.verbose_data.as_ref().expect("Transaction output verbose_data is missing");
@@ -85,8 +83,7 @@ pub fn map_transaction_outputs_address(transaction: &RpcTransaction) -> Vec<SqlA
     let tx_verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
     transaction
         .outputs
-        .to_owned()
-        .into_iter()
+        .iter()
         .map(|output| {
             let verbose_data = output.verbose_data.as_ref().expect("Transaction output verbose_data is missing");
             SqlAddressTransaction {

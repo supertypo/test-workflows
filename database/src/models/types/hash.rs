@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use kaspa_hashes::Hash as KaspaHash;
 use sqlx;
 use sqlx::encode::IsNull;
@@ -12,9 +13,11 @@ impl Hash {
     pub const fn as_bytes(&self) -> [u8; 32] {
         self.0.as_bytes()
     }
+}
 
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+impl Display for Hash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

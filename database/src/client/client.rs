@@ -26,11 +26,11 @@ pub struct KaspaDbClient {
 impl KaspaDbClient {
     const SCHEMA_VERSION: u8 = 6;
 
-    pub async fn new(url: &String) -> Result<KaspaDbClient, Error> {
+    pub async fn new(url: &str) -> Result<KaspaDbClient, Error> {
         Self::new_with_args(url, 10).await
     }
 
-    pub async fn new_with_args(url: &String, pool_size: u32) -> Result<KaspaDbClient, Error> {
+    pub async fn new_with_args(url: &str, pool_size: u32) -> Result<KaspaDbClient, Error> {
         let url_cleaned = Regex::new(r"(postgres://postgres:)[^@]+(@)").expect("Failed to parse url").replace(url, "$1$2");
         debug!("Connecting to PostgreSQL {}", url_cleaned);
         let connect_opts = PgConnectOptions::from_str(url)?.log_slow_statements(LevelFilter::Warn, Duration::from_secs(60));
