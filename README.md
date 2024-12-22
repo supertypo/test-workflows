@@ -20,7 +20,7 @@ Use include_fields or exclude_fields arguments to fine tune. See [here](https://
 **Be aware that the required fields can change at any time, so take special care when upgrading the indexer!**
 
 ### Postgres tuning
-Make sure to tune Postgres depending, here is some suggested values to get you started (12GB RAM VPS with SSD storage):
+Make sure to tune Postgres to your specific hardware, here is some suggested values to get you started (12GB RAM VPS with SSD storage):
 ```
 shared_buffers = 2GB
 work_mem = 128MB
