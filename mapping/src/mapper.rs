@@ -9,7 +9,7 @@ use simply_kaspa_database::models::transaction_input::TransactionInput as SqlTra
 use simply_kaspa_database::models::transaction_output::TransactionOutput as SqlTransactionOutput;
 use simply_kaspa_database::models::types::hash::Hash as SqlHash;
 
-use crate::mapper::{blocks, transactions};
+use crate::{blocks, transactions};
 
 #[derive(Clone)]
 pub struct KaspaDbMapper {

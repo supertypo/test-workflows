@@ -1,9 +1,9 @@
-use crate::settings::settings::Settings;
+use crate::settings::Settings;
 use crate::virtual_chain::update_transactions::update_txs;
 use deadpool::managed::{Object, Pool};
 use kaspa_rpc_core::api::rpc::RpcApi;
 use log::{debug, info};
-use simply_kaspa_database::client::client::KaspaDbClient;
+use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

@@ -13,17 +13,17 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;
 
-use simply_kaspa_database::client::client::KaspaDbClient;
+use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_indexer::blocks::fetch_blocks::KaspaBlocksFetcher;
 use simply_kaspa_indexer::blocks::process_blocks::process_blocks;
 use simply_kaspa_indexer::cli::cli_args::CliArgs;
-use simply_kaspa_indexer::settings::settings::Settings;
+use simply_kaspa_indexer::settings::Settings;
 use simply_kaspa_indexer::signal::signal_handler::notify_on_signals;
 use simply_kaspa_indexer::transactions::process_transactions::process_transactions;
-use simply_kaspa_indexer::vars::vars::load_block_checkpoint;
+use simply_kaspa_indexer::vars::load_block_checkpoint;
 use simply_kaspa_indexer::virtual_chain::process_virtual_chain::process_virtual_chain;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
-use simply_kaspa_mapping::mapper::mapper::KaspaDbMapper;
+use simply_kaspa_mapping::mapper::KaspaDbMapper;
 
 #[tokio::main]
 async fn main() {

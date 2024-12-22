@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::settings::settings::Settings;
+use crate::settings::Settings;
 use chrono::Utc;
 use crossbeam_queue::ArrayQueue;
 use deadpool::managed::{Object, Pool};
