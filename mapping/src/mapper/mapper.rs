@@ -32,7 +32,9 @@ pub struct KaspaDbMapper {
     tx_block_time: bool,
     tx_in_signature_script: bool,
     tx_in_sig_op_count: bool,
+    tx_in_block_time: bool,
     tx_out_script_public_key_address: bool,
+    tx_out_block_time: bool,
 }
 
 impl KaspaDbMapper {
@@ -57,7 +59,9 @@ impl KaspaDbMapper {
             tx_block_time: include_field(exclude_fields, include_fields, "tx.block_time"),
             tx_in_signature_script: include_field(exclude_fields, include_fields, "tx_in.signature_script"),
             tx_in_sig_op_count: include_field(exclude_fields, include_fields, "tx_in.sig_op_count"),
+            tx_in_block_time: include_field(exclude_fields, include_fields, "tx_in.block_time"),
             tx_out_script_public_key_address: include_field(exclude_fields, include_fields, "tx_out.script_public_key_address"),
+            tx_out_block_time: include_field(exclude_fields, include_fields, "tx_out.block_time"),
         }
     }
 
@@ -101,11 +105,11 @@ impl KaspaDbMapper {
     }
 
     pub fn map_transaction_inputs(&self, transaction: &RpcTransaction) -> Vec<SqlTransactionInput> {
-        transactions::map_transaction_inputs(transaction, self.tx_in_signature_script, self.tx_in_sig_op_count)
+        transactions::map_transaction_inputs(transaction, self.tx_in_signature_script, self.tx_in_sig_op_count, self.tx_in_block_time)
     }
 
     pub fn map_transaction_outputs(&self, transaction: &RpcTransaction) -> Vec<SqlTransactionOutput> {
-        transactions::map_transaction_outputs(transaction, self.tx_out_script_public_key_address)
+        transactions::map_transaction_outputs(transaction, self.tx_out_script_public_key_address, self.tx_out_block_time)
     }
 
     pub fn map_transaction_outputs_address(&self, transaction: &RpcTransaction) -> Vec<SqlAddressTransaction> {

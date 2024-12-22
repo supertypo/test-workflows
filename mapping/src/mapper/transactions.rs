@@ -35,6 +35,7 @@ pub fn map_transaction_inputs(
     transaction: &RpcTransaction,
     include_signature_script: bool,
     include_sig_op_count: bool,
+    include_block_time: bool,
 ) -> Vec<SqlTransactionInput> {
     let tx_verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
     transaction
@@ -49,12 +50,16 @@ pub fn map_transaction_inputs(
             previous_outpoint_index: input.previous_outpoint.index.to_i16().unwrap(),
             signature_script: include_signature_script.then_some(input.signature_script.clone()),
             sig_op_count: include_sig_op_count.then_some(input.sig_op_count as i16),
-            block_time: Some(tx_verbose_data.block_time.to_i64().unwrap()),
+            block_time: include_block_time.then_some(tx_verbose_data.block_time.to_i64().unwrap()),
         })
         .collect::<Vec<SqlTransactionInput>>()
 }
 
-pub fn map_transaction_outputs(transaction: &RpcTransaction, include_script_public_key_address: bool) -> Vec<SqlTransactionOutput> {
+pub fn map_transaction_outputs(
+    transaction: &RpcTransaction,
+    include_script_public_key_address: bool,
+    include_block_time: bool,
+) -> Vec<SqlTransactionOutput> {
     let tx_verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
     transaction
         .outputs
@@ -70,7 +75,7 @@ pub fn map_transaction_outputs(transaction: &RpcTransaction, include_script_publ
                 script_public_key: output.script_public_key.script().to_vec(),
                 script_public_key_address: include_script_public_key_address
                     .then_some(verbose_data.script_public_key_address.payload_to_string()),
-                block_time: Some(tx_verbose_data.block_time.to_i64().unwrap()),
+                block_time: include_block_time.then_some(tx_verbose_data.block_time.to_i64().unwrap()),
             }
         })
         .collect::<Vec<SqlTransactionOutput>>()
