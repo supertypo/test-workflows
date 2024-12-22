@@ -37,7 +37,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image for branch pushes
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
         run: |
           docker buildx build --pull \
             --platform linux/amd64,linux/arm64 \
