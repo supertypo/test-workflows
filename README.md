@@ -50,9 +50,7 @@ kaspa:qrjtsnnpjyvlmkffdqyayrny3qyen9yjkpuw7xvhsz36n69wmrfdyf3nwv67t
 # Getting started
 
 ## Run using precompiled Docker image
-```shell
-docker run --rm -it supertypo/simply-kaspa-indexer -s ws://<kaspad_host>:17110 -d postgres://postgres:postgres@<postgres_host>:5432/postgres
-```
+Please consult the [Docker Hub page](https://hub.docker.com/r/supertypo/simply-kaspa-indexer).
 
 ## Build and run from source
 These instructions are for Ubuntu 24.04, adjustments might be needed for other distributions (or versions). 
