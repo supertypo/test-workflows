@@ -84,3 +84,44 @@ cargo build
 ```shell
 cargo run -- -s ws://<kaspad_host>:17110 -d postgres://postgres:postgres@<postgres_host>:5432
 ```
+
+## Help
+```
+Usage: simply-kaspa-indexer [OPTIONS]
+
+Options:
+  -s, --rpc-url <RPC_URL>
+          The url to a kaspad instance, e.g 'ws://localhost:17110'. Leave empty to use the Kaspa PNN
+  -n, --network <NETWORK>
+          The network type and suffix, e.g. 'testnet-11' [default: mainnet]
+  -d, --database-url <DATABASE_URL>
+          PostgreSQL url [default: postgres://postgres:postgres@localhost:5432/postgres]
+  -l, --log-level <LOG_LEVEL>
+          error, warn, info, debug, trace, off [default: info]
+      --log-no-color
+          Disable colored output
+  -b, --batch-scale <BATCH_SCALE>
+          Batch size factor [0.1-10]. Adjusts internal queues and database batch sizes [default: 1.0]
+  -t, --cache-ttl <CACHE_TTL>
+          Cache ttl (secs). Adjusts tx/block caches for in-memory de-duplication [default: 60]
+  -i, --ignore-checkpoint <IGNORE_CHECKPOINT>
+          Ignore checkpoint and start from a specified block, 'p' for pruning point or 'v' for virtual
+      --vcp-before-synced
+          Start VCP as soon as the filler has passed the previous run. Use with care
+      --skip-resolving-addresses
+          Reduces database load by not tracking an address's transactions in a separate table
+      --skip-block-relations
+          Reduces database load by not tracking block relations in a separate table
+  -u, --upgrade-db
+          Auto-upgrades older db schemas. Use with care
+  -c, --initialize-db
+          (Re-)initializes the database schema. Use with care
+      --exclude-fields <EXCLUDE_FIELDS>
+          Exclude specific (non-required) fields.
+                  If include_fields is specified this argument is ignored. [possible values: none, block_accepted_id_merkle_root, block_merge_set_blues_hashes, block_merge_set_reds_hashes, block_selected_parent_hash, block_bits, block_blue_work, block_daa_score, block_hash_merkle_root, block_nonce, block_pruning_point, block_timestamp, block_utxo_commitment, block_version, tx_hash, tx_mass, tx_payload, tx_block_time, tx_in_signature_script, tx_in_sig_op_count, tx_in_block_time, tx_out_script_public_key_address, tx_out_block_time]
+      --include-fields <INCLUDE_FIELDS>
+          Only include specific (non-required) fields.
+                  Be aware that the required fields can change, so take care when upgrading and specify every field you need. [possible values: none, block_accepted_id_merkle_root, block_merge_set_blues_hashes, block_merge_set_reds_hashes, block_selected_parent_hash, block_bits, block_blue_work, block_daa_score, block_hash_merkle_root, block_nonce, block_pruning_point, block_timestamp, block_utxo_commitment, block_version, tx_hash, tx_mass, tx_payload, tx_block_time, tx_in_signature_script, tx_in_sig_op_count, tx_in_block_time, tx_out_script_public_key_address, tx_out_block_time]
+  -h, --help
+          Print help
+```
