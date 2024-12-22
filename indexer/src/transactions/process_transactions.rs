@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-
+use bigdecimal::ToPrimitive;
 use crossbeam_queue::ArrayQueue;
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::RpcTransaction;
@@ -78,7 +78,7 @@ pub async fn process_transactions(
                     trace!("Known transaction_id {}, keeping block relation only", transaction_id.to_string());
                 } else {
                     let transaction = mapper.map_transaction(&rpc_transaction, subnetwork_key);
-                    last_block_time = transaction.block_time;
+                    last_block_time = rpc_transaction.verbose_data.as_ref().unwrap().block_time.to_i64().unwrap();
                     transactions.push(transaction);
                     tx_inputs.extend(mapper.map_transaction_inputs(&rpc_transaction));
                     tx_outputs.extend(mapper.map_transaction_outputs(&rpc_transaction));

@@ -13,6 +13,7 @@ pub fn map_transaction(
     include_hash: bool,
     include_mass: bool,
     include_payload: bool,
+    include_block_time: bool,
 ) -> SqlTransaction {
     let verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
     SqlTransaction {
@@ -20,8 +21,8 @@ pub fn map_transaction(
         subnetwork_id: subnetwork_key,
         hash: include_hash.then_some(verbose_data.hash.into()),
         mass: (include_mass && verbose_data.compute_mass != 0).then_some(verbose_data.compute_mass.to_i32().unwrap()),
-        payload: (include_payload && transaction.payload.len() > 0).then_some(transaction.payload.to_owned()),
-        block_time: verbose_data.block_time.to_i64().unwrap(),
+        payload: (include_payload && !transaction.payload.is_empty()).then_some(transaction.payload.to_owned()),
+        block_time: include_block_time.then_some(verbose_data.block_time.to_i64().unwrap()),
     }
 }
 

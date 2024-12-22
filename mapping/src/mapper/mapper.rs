@@ -29,6 +29,7 @@ pub struct KaspaDbMapper {
     tx_hash: bool,
     tx_mass: bool,
     tx_payload: bool,
+    tx_block_time: bool,
     tx_in_signature_script: bool,
     tx_in_sig_op_count: bool,
     tx_out_script_public_key_address: bool,
@@ -53,6 +54,7 @@ impl KaspaDbMapper {
             tx_hash: include_field(exclude_fields, include_fields, "tx.hash"),
             tx_mass: include_field(exclude_fields, include_fields, "tx.mass"),
             tx_payload: include_field(exclude_fields, include_fields, "tx.payload"),
+            tx_block_time: include_field(exclude_fields, include_fields, "tx.block_time"),
             tx_in_signature_script: include_field(exclude_fields, include_fields, "tx_in.signature_script"),
             tx_in_sig_op_count: include_field(exclude_fields, include_fields, "tx_in.sig_op_count"),
             tx_out_script_public_key_address: include_field(exclude_fields, include_fields, "tx_out.script_public_key_address"),
@@ -91,7 +93,7 @@ impl KaspaDbMapper {
     }
 
     pub fn map_transaction(&self, transaction: &RpcTransaction, subnetwork_key: i32) -> SqlTransaction {
-        transactions::map_transaction(subnetwork_key, transaction, self.tx_hash, self.tx_mass, self.tx_payload)
+        transactions::map_transaction(subnetwork_key, transaction, self.tx_hash, self.tx_mass, self.tx_payload, self.tx_block_time)
     }
 
     pub fn map_block_transaction(&self, transaction: &RpcTransaction) -> SqlBlockTransaction {
