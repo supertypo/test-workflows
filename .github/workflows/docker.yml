@@ -45,8 +45,6 @@ jobs:
             --build-arg VERSION=${{ github.ref_name }} \
             -t supertypo/simply-kaspa-indexer:${{ env.SHORT_SHA }} \
             -t supertypo/simply-kaspa-indexer:${{ github.ref_name }} \
-            -t supertypo/kaspa-db-filler-ng:${{ env.SHORT_SHA }} \
-            -t supertypo/kaspa-db-filler-ng:${{ github.ref_name }} \
             -f docker/Dockerfile \
             --push .
 
