@@ -554,6 +554,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed6719fffa43d0d87e5fd8caeab59be1554fb028cd30edc88fc4369b17971019"
 dependencies = [
  "clap_builder",
+ "clap_derive",
 ]
 
 [[package]]
@@ -566,6 +567,18 @@ dependencies = [
  "anstyle",
  "clap_lex",
  "strsim",
+]
+
+[[package]]
+name = "clap_derive"
+version = "4.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "501d359d5f3dcaf6ecdeee48833ae73ec6e42723a1e52419c79abf9507eec0a0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -746,6 +759,26 @@ name = "data-encoding"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
+
+[[package]]
+name = "deadpool"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6541a3916932fe57768d4be0b1ffb5ec7cbf74ca8c903fdfd5c0fe8aa958f0ed"
+dependencies = [
+ "deadpool-runtime",
+ "num_cpus",
+ "tokio",
+]
+
+[[package]]
+name = "deadpool-runtime"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
+dependencies = [
+ "tokio",
+]
 
 [[package]]
 name = "der"
@@ -1680,48 +1713,6 @@ dependencies = [
  "triggered",
  "wasm-bindgen",
  "workflow-log",
-]
-
-[[package]]
-name = "kaspa-database"
-version = "0.0.0"
-dependencies = [
- "itertools 0.13.0",
- "kaspa-hashes",
- "log",
- "regex",
- "sqlx",
-]
-
-[[package]]
-name = "kaspa-database-mapping"
-version = "0.0.0"
-dependencies = [
- "bigdecimal",
- "kaspa-database",
- "kaspa-rpc-core",
- "log",
-]
-
-[[package]]
-name = "kaspa-db-filler-ng"
-version = "0.0.0"
-dependencies = [
- "bigdecimal",
- "chrono",
- "clap",
- "crossbeam-queue",
- "env_logger",
- "futures-util",
- "hex",
- "kaspa-database",
- "kaspa-database-mapping",
- "kaspa-hashes",
- "kaspa-rpc-core",
- "kaspa-wrpc-client",
- "log",
- "moka",
- "tokio",
 ]
 
 [[package]]
@@ -3233,6 +3224,64 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest",
  "rand_core",
+]
+
+[[package]]
+name = "simply-kaspa-database"
+version = "0.0.0"
+dependencies = [
+ "itertools 0.13.0",
+ "kaspa-hashes",
+ "log",
+ "regex",
+ "sqlx",
+]
+
+[[package]]
+name = "simply-kaspa-indexer"
+version = "0.0.0"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "clap",
+ "crossbeam-queue",
+ "deadpool",
+ "env_logger",
+ "futures-util",
+ "hex",
+ "kaspa-hashes",
+ "kaspa-rpc-core",
+ "kaspa-wrpc-client",
+ "log",
+ "moka",
+ "simply-kaspa-database",
+ "simply-kaspa-kaspad",
+ "simply-kaspa-mapping",
+ "tokio",
+]
+
+[[package]]
+name = "simply-kaspa-kaspad"
+version = "0.0.0"
+dependencies = [
+ "deadpool",
+ "futures",
+ "kaspa-rpc-core",
+ "kaspa-wrpc-client",
+ "log",
+ "tokio",
+ "workflow-core",
+]
+
+[[package]]
+name = "simply-kaspa-mapping"
+version = "0.0.0"
+dependencies = [
+ "bigdecimal",
+ "clap",
+ "kaspa-rpc-core",
+ "log",
+ "simply-kaspa-database",
 ]
 
 [[package]]

@@ -1,45 +1,52 @@
+use clap::Parser;
+use crossbeam_queue::ArrayQueue;
+use deadpool::managed::{Object, Pool};
+use futures_util::future::try_join_all;
+use kaspa_hashes::Hash as KaspaHash;
+use kaspa_rpc_core::api::rpc::RpcApi;
+use kaspa_wrpc_client::prelude::NetworkId;
+use log::{info, trace, warn};
 use std::env;
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-
-use crossbeam_queue::ArrayQueue;
-use futures_util::future::try_join_all;
-use kaspa_hashes::Hash as KaspaHash;
-use kaspa_rpc_core::api::rpc::RpcApi;
-use kaspa_wrpc_client::KaspaRpcClient;
-use log::{info, warn};
+use std::time::Duration;
 use tokio::task;
 
-use kaspa_database::client::client::KaspaDbClient;
-use kaspa_database_mapping::mapper::mapper::KaspaDbMapper;
-use kaspa_db_filler_ng::blocks::fetch_blocks::KaspaBlocksFetcher;
-use kaspa_db_filler_ng::blocks::process_blocks::process_blocks;
-use kaspa_db_filler_ng::cli::cli_args::{get_cli_args, CliArgs};
-use kaspa_db_filler_ng::kaspad::client::connect_kaspad;
-use kaspa_db_filler_ng::settings::settings::Settings;
-use kaspa_db_filler_ng::signal::signal_handler::notify_on_signals;
-use kaspa_db_filler_ng::transactions::process_transactions::process_transactions;
-use kaspa_db_filler_ng::vars::vars::load_block_checkpoint;
-use kaspa_db_filler_ng::virtual_chain::process_virtual_chain::process_virtual_chain;
+use simply_kaspa_database::client::client::KaspaDbClient;
+use simply_kaspa_indexer::blocks::fetch_blocks::KaspaBlocksFetcher;
+use simply_kaspa_indexer::blocks::process_blocks::process_blocks;
+use simply_kaspa_indexer::cli::cli_args::CliArgs;
+use simply_kaspa_indexer::settings::settings::Settings;
+use simply_kaspa_indexer::signal::signal_handler::notify_on_signals;
+use simply_kaspa_indexer::transactions::process_transactions::process_transactions;
+use simply_kaspa_indexer::vars::vars::load_block_checkpoint;
+use simply_kaspa_indexer::virtual_chain::process_virtual_chain::process_virtual_chain;
+use simply_kaspa_kaspad::pool::manager::KaspadManager;
+use simply_kaspa_mapping::mapper::mapper::KaspaDbMapper;
 
 #[tokio::main]
 async fn main() {
     println!();
     println!("**************************************************************");
-    println!("********************* Kaspa DB Filler NG *********************");
+    println!("******************** Simply Kaspa Indexer ********************");
     println!("**************************************************************");
-    println!("https://hub.docker.com/r/supertypo/kaspa-db-filler-ng");
+    println!("https://hub.docker.com/r/supertypo/simply-kaspa-indexer");
     println!();
-    let cli_args = get_cli_args();
+    let cli_args = CliArgs::parse();
 
     env::set_var("RUST_LOG", &cli_args.log_level);
     env::set_var("RUST_LOG_STYLE", if cli_args.log_no_color { "never" } else { "always" });
     env_logger::builder().target(env_logger::Target::Stdout).format_target(false).format_timestamp_millis().init();
 
+    trace!("{:?}", cli_args);
     if cli_args.batch_scale < 0.1 || cli_args.batch_scale > 10.0 {
         panic!("Invalid batch-scale");
     }
+
+    let network_id = NetworkId::from_str(&cli_args.network).unwrap();
+    let kaspad_manager = KaspadManager { network_id, rpc_url: cli_args.rpc_url.clone() };
+    let kaspad_pool: Pool<KaspadManager> = Pool::builder(kaspad_manager).max_size(10).build().unwrap();
 
     let database = KaspaDbClient::new(&cli_args.database_url).await.expect("Database connection FAILED");
 
@@ -49,13 +56,26 @@ async fn main() {
     }
     database.create_schema(cli_args.upgrade_db).await.expect("Unable to create schema");
 
-    let kaspad = connect_kaspad(&cli_args).await.expect("Kaspad connection FAILED");
-
-    start_processing(cli_args, kaspad, database).await.expect("Unreachable");
+    start_processing(cli_args, kaspad_pool, database).await.expect("Unreachable");
 }
 
-async fn start_processing(cli_args: CliArgs, kaspad: KaspaRpcClient, database: KaspaDbClient) -> Result<(), ()> {
-    let block_dag_info = kaspad.get_block_dag_info().await.expect("Error when invoking GetBlockDagInfo");
+async fn start_processing(
+    cli_args: CliArgs,
+    kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
+    database: KaspaDbClient,
+) -> Result<(), ()> {
+    let mut block_dag_info = None;
+    while block_dag_info.is_none() {
+        if let Ok(kaspad) = kaspad_pool.get().await {
+            if let Ok(bdi) = kaspad.get_block_dag_info().await {
+                block_dag_info = Some(bdi);
+            }
+        }
+        if block_dag_info.is_none() {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    }
+    let block_dag_info = block_dag_info.unwrap();
     let net_bps = if block_dag_info.network.suffix.filter(|s| s.to_owned() == 11).is_some() { 10 } else { 1 };
     let net_tps_max = net_bps as u16 * 300;
     info!("Assuming {} block(s) per second for cache sizes", net_bps);
@@ -88,24 +108,30 @@ async fn start_processing(cli_args: CliArgs, kaspad: KaspaRpcClient, database: K
     if cli_args.skip_resolving_addresses {
         warn!("Skip resolving addresses is enabled")
     }
-    if cli_args.extra_data {
-        info!("Extra data is enabled")
+    if cli_args.skip_block_relations {
+        info!("Block relations disabled")
+    }
+    if let Some(include_fields) = &cli_args.include_fields {
+        info!("Include fields is set, the following (non-required) fields will be included: {:?}", include_fields);
+    } else if let Some(exclude_fields) = &cli_args.exclude_fields {
+        info!("Exclude fields is set, the following (non-required) fields will be excluded: {:?}", exclude_fields);
     }
 
     let run = Arc::new(AtomicBool::new(true));
     task::spawn(notify_on_signals(run.clone()));
 
-    let base_buffer = 3000f64;
-    let blocks_queue = Arc::new(ArrayQueue::new((base_buffer * cli_args.batch_scale) as usize));
-    let txs_queue = Arc::new(ArrayQueue::new((base_buffer * cli_args.batch_scale) as usize));
+    let base_buffer_blocks = 1000f64;
+    let base_buffer_txs = base_buffer_blocks * 20f64;
+    let blocks_queue = Arc::new(ArrayQueue::new((base_buffer_blocks * cli_args.batch_scale) as usize));
+    let txs_queue = Arc::new(ArrayQueue::new((base_buffer_txs * cli_args.batch_scale) as usize));
 
-    let mapper = KaspaDbMapper::new(cli_args.extra_data);
+    let mapper = KaspaDbMapper::new(&cli_args.exclude_fields, &cli_args.include_fields);
 
     let settings = Settings { cli_args: cli_args.clone(), net_bps, net_tps_max, checkpoint };
     let start_vcp = Arc::new(AtomicBool::new(false));
 
     let mut block_fetcher =
-        KaspaBlocksFetcher::new(settings.clone(), run.clone(), kaspad.clone(), blocks_queue.clone(), txs_queue.clone());
+        KaspaBlocksFetcher::new(settings.clone(), run.clone(), kaspad_pool.clone(), blocks_queue.clone(), txs_queue.clone());
 
     let tasks = vec![
         task::spawn(async move { block_fetcher.start().await }),
@@ -118,7 +144,7 @@ async fn start_processing(cli_args: CliArgs, kaspad: KaspaRpcClient, database: K
             mapper.clone(),
         )),
         task::spawn(process_transactions(settings.clone(), run.clone(), txs_queue.clone(), database.clone(), mapper.clone())),
-        task::spawn(process_virtual_chain(settings.clone(), run.clone(), start_vcp.clone(), kaspad.clone(), database.clone())),
+        task::spawn(process_virtual_chain(settings.clone(), run.clone(), start_vcp.clone(), kaspad_pool.clone(), database.clone())),
     ];
     try_join_all(tasks).await.unwrap();
     Ok(())

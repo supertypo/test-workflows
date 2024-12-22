@@ -8,12 +8,12 @@ use crate::settings::settings::Settings;
 use crate::vars::vars::save_checkpoint;
 use chrono::DateTime;
 use crossbeam_queue::ArrayQueue;
-use kaspa_database::client::client::KaspaDbClient;
-use kaspa_database::models::block::Block;
-use kaspa_database::models::block_parent::BlockParent;
-use kaspa_database::models::types::hash::Hash as SqlHash;
-use kaspa_database_mapping::mapper::mapper::KaspaDbMapper;
 use log::{debug, info, warn};
+use simply_kaspa_database::client::client::KaspaDbClient;
+use simply_kaspa_database::models::block::Block;
+use simply_kaspa_database::models::block_parent::BlockParent;
+use simply_kaspa_database::models::types::hash::Hash as SqlHash;
+use simply_kaspa_mapping::mapper::mapper::KaspaDbMapper;
 use tokio::time::sleep;
 
 struct Checkpoint {
@@ -40,7 +40,6 @@ pub async fn process_blocks(
     let mut blocks_parents = vec![];
     let mut block_hashes = vec![];
     let mut checkpoint = None;
-    let mut last_block_datetime;
     let mut checkpoint_last_saved = Instant::now();
     let mut checkpoint_last_warned = Instant::now();
     let mut last_commit_time = Instant::now();
@@ -49,8 +48,11 @@ pub async fn process_blocks(
     while run.load(Ordering::Relaxed) {
         if let Some(block_data) = rpc_blocks_queue.pop() {
             let synced = block_data.synced;
+            let last_block_datetime = DateTime::from_timestamp_millis(block_data.block.header.timestamp as i64 / 1000 * 1000).unwrap();
             let block = mapper.map_block(&block_data.block);
-            let block_parents = mapper.map_block_parents(&block_data.block);
+            if !settings.cli_args.skip_block_relations {
+                blocks_parents.extend(mapper.map_block_parents(&block_data.block));
+            }
             let tx_count = mapper.count_block_transactions(&block_data.block);
             if Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_SAVE_INTERVAL {
                 if let None = checkpoint {
@@ -58,19 +60,21 @@ pub async fn process_blocks(
                     checkpoint = Some(Checkpoint { block_hash: block.hash.clone(), tx_count: tx_count as i64 })
                 }
             }
-            last_block_datetime = DateTime::from_timestamp_millis(block.timestamp / 1000 * 1000).unwrap();
             if !vcp_started {
                 block_hashes.push(block.hash.clone());
             }
             blocks.push(block);
-            blocks_parents.extend(block_parents);
 
             if blocks.len() >= batch_size || (blocks.len() >= 1 && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
                 let start_commit_time = Instant::now();
                 debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
                 let blocks_len = blocks.len();
                 let blocks_inserted = insert_blocks(batch_scale, blocks, database.clone()).await;
-                let block_parents_inserted = insert_block_parents(batch_scale, blocks_parents, database.clone()).await;
+                let block_parents_inserted = if !settings.cli_args.skip_block_relations {
+                    insert_block_parents(batch_scale, blocks_parents, database.clone()).await
+                } else {
+                    0
+                };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
                 let bps = blocks_len as f64 / commit_time as f64 * 1000f64;
                 blocks = vec![];

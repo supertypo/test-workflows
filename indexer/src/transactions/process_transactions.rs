@@ -12,14 +12,14 @@ use moka::sync::Cache;
 use tokio::task;
 use tokio::time::sleep;
 
-use kaspa_database::client::client::KaspaDbClient;
-use kaspa_database::models::address_transaction::AddressTransaction;
-use kaspa_database::models::block_transaction::BlockTransaction;
-use kaspa_database::models::transaction::Transaction;
-use kaspa_database::models::transaction_input::TransactionInput;
-use kaspa_database::models::transaction_output::TransactionOutput;
-use kaspa_database::models::types::hash::Hash as SqlHash;
-use kaspa_database_mapping::mapper::mapper::KaspaDbMapper;
+use simply_kaspa_database::client::client::KaspaDbClient;
+use simply_kaspa_database::models::address_transaction::AddressTransaction;
+use simply_kaspa_database::models::block_transaction::BlockTransaction;
+use simply_kaspa_database::models::transaction::Transaction;
+use simply_kaspa_database::models::transaction_input::TransactionInput;
+use simply_kaspa_database::models::transaction_output::TransactionOutput;
+use simply_kaspa_database::models::types::hash::Hash as SqlHash;
+use simply_kaspa_mapping::mapper::mapper::KaspaDbMapper;
 
 use crate::settings::settings::Settings;
 
@@ -33,8 +33,8 @@ pub async fn process_transactions(
     mapper: KaspaDbMapper,
 ) {
     let ttl = settings.cli_args.cache_ttl;
-    let cache_size = settings.net_tps_max as u64 * ttl.as_secs() * 2;
-    let tx_id_cache: Cache<KaspaHash, ()> = Cache::builder().time_to_live(ttl).max_capacity(cache_size).build();
+    let cache_size = settings.net_tps_max as u64 * ttl * 2;
+    let tx_id_cache: Cache<KaspaHash, ()> = Cache::builder().time_to_live(Duration::from_secs(ttl)).max_capacity(cache_size).build();
 
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (5000f64 * batch_scale) as usize;
