@@ -41,9 +41,12 @@ jobs:
         run: |
           docker buildx build --pull \
             --platform linux/amd64,linux/arm64 \
+            --build-arg COMMIT_ID=${{ env.SHORT_SHA }} \
+            --build-arg VERSION=${{ github.ref_name }} \
+            -t supertypo/simply-kaspa-indexer:${{ env.SHORT_SHA }} \
+            -t supertypo/simply-kaspa-indexer:${{ github.ref_name }} \
             -t supertypo/kaspa-db-filler-ng:${{ env.SHORT_SHA }} \
             -t supertypo/kaspa-db-filler-ng:${{ github.ref_name }} \
-            -t supertypo/kaspa-db-filler-ng:unstable \
             -f docker/Dockerfile \
             --push .
 
@@ -52,6 +55,11 @@ jobs:
         run: |
           docker buildx build --pull \
             --platform linux/amd64,linux/arm64 \
+            --build-arg COMMIT_ID=${{ env.SHORT_SHA }} \
+            --build-arg VERSION=${{ github.ref_name }} \
+            -t supertypo/simply-kaspa-indexer:${{ env.SHORT_SHA }} \
+            -t supertypo/simply-kaspa-indexer:${{ github.ref_name }} \
+            -t supertypo/simply-kaspa-indexer:latest \
             -t supertypo/kaspa-db-filler-ng:${{ env.SHORT_SHA }} \
             -t supertypo/kaspa-db-filler-ng:${{ github.ref_name }} \
             -t supertypo/kaspa-db-filler-ng:latest \

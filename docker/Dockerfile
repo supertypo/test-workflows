@@ -48,11 +48,16 @@ RUN apk --no-cache add \
   libstdc++ \
   postgresql-client
 
-COPY LICENSE /usr/local/bin/
 COPY --from=builder /work/target/release/simply-kaspa-indexer /usr/local/bin/
 RUN ln -s /usr/local/bin/simply-kaspa-indexer /usr/local/bin/kaspa-db-filler-ng
 
 USER 13337:13337
+
+ARG VERSION
+ARG COMMIT_ID
+
+ENV VERSION=$VERSION \
+  COMMIT_ID=$COMMIT_ID
 
 ENTRYPOINT ["simply-kaspa-indexer"]
 CMD ["--help"]
