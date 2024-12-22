@@ -1,4 +1,4 @@
-# simply-kaspa-indexer
+# Simply Kaspa Indexer
 A high performance Kaspa PostgreSQL indexer implemented in Rust.  
 
 ## About
@@ -16,11 +16,11 @@ Currently --skip_resolving_addresses and --skip_block_relations are supported, m
 
 ### Optional fields
 In addition to optional tables, many fields can be left empty if they are not required for your use case.  
-Use include_fields or exclude_fields arguments to fine tune. See [here](https://github.com/supertypo/simply-kaspa-indexer/blob/main/mapping/src/mapper/mapper.rs#L38) for a list of optional fields.  
+Use include_fields or exclude_fields arguments to fine tune. See --help for a list of optional fields.  
 **Be aware that the required fields can change at any time, so take special care when upgrading the indexer!**
 
 ### Postgres tuning
-Make sure to tune Postgres to your specific hardware, here is some suggested values to get you started (12GB RAM VPS with SSD storage):
+Make sure to tune Postgres to your specific hardware, here is an example for a server with 12GB RAM and SSD storage:
 ```
 shared_buffers = 2GB
 work_mem = 128MB
@@ -35,6 +35,11 @@ In addition, I highly recommend running Postgres on ZFS with compression=lz4 for
 ### Tn11 (10bps) note
 The indexer is able to keep up with the 10bps testnet (TN11) under full load (2000+tps) as long as Postgres is running on a sufficiently high-end NVMe.  
 You can consider disabling optional tables and fields to bring the requirements down if running on lesser hardware.
+
+### Historical data
+The indexer will begin collecting data from the point in time when it's started.  
+If you have an archival node, you can specify the start-block using the --ignore_checkpoint argument and specify an older start block.  
+Please make contact with us on the [Kaspa Discord](https://kaspa.org) if you need a pg_dump-file of historical records.
 
 # License
 ISC. See LICENSE.
