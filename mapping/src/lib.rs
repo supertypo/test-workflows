@@ -1,3 +1,3 @@
-pub mod mapper;
 mod blocks;
+pub mod mapper;
 mod transactions;

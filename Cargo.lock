@@ -3227,6 +3227,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "simply-kaspa-cli"
+version = "0.0.0"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "simply-kaspa-database"
 version = "0.0.0"
 dependencies = [
@@ -3254,6 +3261,7 @@ dependencies = [
  "kaspa-wrpc-client",
  "log",
  "moka",
+ "simply-kaspa-cli",
  "simply-kaspa-database",
  "simply-kaspa-kaspad",
  "simply-kaspa-mapping",
@@ -3281,6 +3289,7 @@ dependencies = [
  "clap",
  "kaspa-rpc-core",
  "log",
+ "simply-kaspa-cli",
  "simply-kaspa-database",
 ]
 

@@ -22,11 +22,13 @@ ENV RUSTFLAGS="-C target-feature=-crt-static -C link-args=-s" \
 
 # Cache dependencies
 COPY "$REPO_DIR"/Cargo.toml "$REPO_DIR"/Cargo.lock ./
+COPY "$REPO_DIR"/cli/Cargo.toml ./cli/
 COPY "$REPO_DIR"/kaspad/Cargo.toml ./kaspad/
 COPY "$REPO_DIR"/database/Cargo.toml ./database/
 COPY "$REPO_DIR"/mapping/Cargo.toml ./mapping/
 COPY "$REPO_DIR"/indexer/Cargo.toml ./indexer/
-RUN mkdir kaspad/src database/src mapping/src indexer/src && \
+RUN mkdir cli/src kaspad/src database/src mapping/src indexer/src && \
+    echo "pub fn placeholder() {}" > cli/src/lib.rs && \
     echo "pub fn placeholder() {}" > kaspad/src/lib.rs && \
     echo "pub fn placeholder() {}" > database/src/lib.rs && \
     echo "pub fn placeholder() {}" > mapping/src/lib.rs && \

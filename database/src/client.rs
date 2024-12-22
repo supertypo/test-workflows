@@ -6,7 +6,6 @@ use regex::Regex;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{ConnectOptions, Error, Pool, Postgres};
 
-use crate::query;
 use crate::models::address_transaction::AddressTransaction;
 use crate::models::block::Block;
 use crate::models::block_parent::BlockParent;
@@ -17,6 +16,7 @@ use crate::models::transaction_acceptance::TransactionAcceptance;
 use crate::models::transaction_input::TransactionInput;
 use crate::models::transaction_output::TransactionOutput;
 use crate::models::types::hash::Hash;
+use crate::query;
 
 #[derive(Clone)]
 pub struct KaspaDbClient {

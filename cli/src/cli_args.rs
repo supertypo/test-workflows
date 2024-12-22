@@ -1,4 +1,32 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "snake_case")]
+pub enum CliField {
+    None,
+    BlockAcceptedIdMerkleRoot,
+    BlockMergeSetBluesHashes,
+    BlockMergeSetRedsHashes,
+    BlockSelectedParentHash,
+    BlockBits,
+    BlockBlueWork,
+    BlockDaaScore,
+    BlockHashMerkleRoot,
+    BlockNonce,
+    BlockPruningPoint,
+    BlockTimestamp,
+    BlockUtxoCommitment,
+    BlockVersion,
+    TxHash,
+    TxMass,
+    TxPayload,
+    TxBlockTime,
+    TxInSignatureScript,
+    TxInSigOpCount,
+    TxInBlockTime,
+    TxOutScriptPublicKeyAddress,
+    TxOutBlockTime,
+}
 
 #[derive(Parser, Clone, Debug)]
 pub struct CliArgs {
@@ -30,16 +58,18 @@ pub struct CliArgs {
     pub initialize_db: bool,
     #[clap(
         long,
-        help = "Exclude specific (non-required) fields, e.g 'block.version,tx.payload'.
+        help = "Exclude specific (non-required) fields.
         If include_fields is specified this argument is ignored.",
+        value_enum,
         use_value_delimiter = true
     )]
-    pub exclude_fields: Option<Vec<String>>,
+    pub exclude_fields: Option<Vec<CliField>>,
     #[clap(
         long,
-        help = "Only include specific (non-required) fields, e.g 'block.nonce,tx.mass,tx_in.sig_op_count' or 'none'.
+        help = "Only include specific (non-required) fields.
         Be aware that the required fields can change, so take care when upgrading and specify every field you need.",
+        value_enum,
         use_value_delimiter = true
     )]
-    pub include_fields: Option<Vec<String>>,
+    pub include_fields: Option<Vec<CliField>>,
 }

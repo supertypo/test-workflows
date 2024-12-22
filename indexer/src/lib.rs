@@ -1,5 +1,4 @@
 pub mod blocks;
-pub mod cli;
 pub mod settings;
 pub mod signal;
 pub mod transactions;

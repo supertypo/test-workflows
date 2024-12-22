@@ -1,14 +1,14 @@
-use std::cmp::min;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 use bigdecimal::ToPrimitive;
 use crossbeam_queue::ArrayQueue;
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::RpcTransaction;
 use log::{debug, info, trace};
 use moka::sync::Cache;
+use std::cmp::min;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::task;
 use tokio::time::sleep;
 
@@ -85,7 +85,8 @@ pub async fn process_transactions(
                 block_tx.push(mapper.map_block_transaction(&rpc_transaction));
             }
 
-            if block_tx.len() >= batch_size || (!block_tx.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
+            if block_tx.len() >= batch_size || (!block_tx.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2)
+            {
                 let start_commit_time = Instant::now();
                 let transactions_len = transactions.len();
                 let transaction_ids = transactions.iter().map(|t| t.transaction_id.clone()).collect();

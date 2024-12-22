@@ -1,6 +1,5 @@
 use kaspa_hashes::Hash as KaspaHash;
-
-use crate::cli::cli_args::CliArgs;
+use simply_kaspa_cli::cli_args::CliArgs;
 
 #[derive(Clone)]
 pub struct Settings {

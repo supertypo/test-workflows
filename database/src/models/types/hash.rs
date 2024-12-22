@@ -1,9 +1,9 @@
-use std::fmt::{Display, Formatter};
 use kaspa_hashes::Hash as KaspaHash;
 use sqlx;
 use sqlx::encode::IsNull;
 use sqlx::postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use sqlx::{Decode, Encode, Postgres, Type};
+use std::fmt::{Display, Formatter};
 
 /// Wrapper type for kaspa_hashes::Hash implementing the SQLX Encode & Decode traits
 #[derive(Clone, Eq, PartialEq, Hash)]

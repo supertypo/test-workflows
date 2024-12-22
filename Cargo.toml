@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "cli",
     "database",
     "mapping",
     "kaspad",
@@ -23,6 +24,7 @@ license-file = "LICENSE"
 edition = "2021" # Rust edition
 
 [workspace.dependencies]
+simply-kaspa-cli = { path = "cli" }
 simply-kaspa-database = { path = "database" }
 simply-kaspa-mapping = { path = "mapping" }
 simply-kaspa-kaspad = { path = "kaspad" }
