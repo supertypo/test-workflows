@@ -1,8 +1,7 @@
 #!/bin/sh
-
 ARCHES="linux/amd64 linux/arm64"
 
-REPO_URL="https://github.com/supertypo/kaspa-db-filler-ng"
+REPO_URL="https://github.com/supertypo/simply-kaspa-indexer"
 DOCKER_REPO1="supertypo/simply-kaspa-indexer"
 DOCKER_REPO2="supertypo/kaspa-db-filler-ng"
 BUILD_DIR="$(dirname $0)"
