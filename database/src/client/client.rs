@@ -56,7 +56,7 @@ impl KaspaDbClient {
                     if version == 1 {
                         let v1_v2_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v1_to_v2.sql"));
                         if upgrade_db {
-                            warn!("Upgrading schema from v1 to v2, this may take a while...");
+                            warn!("\n{v1_v2_ddl}\nUpgrading schema from v1 to v2, this will take a while ^");
                             query::misc::execute_ddl(v1_v2_ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 2;
@@ -67,7 +67,7 @@ impl KaspaDbClient {
                     if version == 2 {
                         let v2_v3_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v2_to_v3.sql"));
                         if upgrade_db {
-                            warn!("Upgrading schema from v2 to v3...");
+                            warn!("\n{v2_v3_ddl}\nUpgrading schema from v2 to v3. ^");
                             query::misc::execute_ddl(v2_v3_ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 3;
@@ -78,7 +78,7 @@ impl KaspaDbClient {
                     if version == 3 {
                         let v3_v4_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v3_to_v4.sql"));
                         if upgrade_db {
-                            warn!("Upgrading schema from v3 to v4...");
+                            warn!("\n{v3_v4_ddl}\nUpgrading schema from v3 to v4. ^");
                             query::misc::execute_ddl(v3_v4_ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 4;
@@ -89,7 +89,7 @@ impl KaspaDbClient {
                     if version == 4 {
                         let v4_v5_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v4_to_v5.sql"));
                         if upgrade_db {
-                            warn!("Upgrading schema from v4 to v5...");
+                            warn!("\n{v4_v5_ddl}\nUpgrading schema from v4 to v5. ^");
                             query::misc::execute_ddl(v4_v5_ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 5;
@@ -100,7 +100,7 @@ impl KaspaDbClient {
                     if version == 5 {
                         let v5_v6_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v5_to_v6.sql"));
                         if upgrade_db {
-                            warn!("Upgrading schema from v5 to v6...");
+                            warn!("\n{v5_v6_ddl}\nUpgrading schema from v5 to v6. ^ NB! There are some optional indexes, review them");
                             query::misc::execute_ddl(v5_v6_ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 6;
@@ -112,10 +112,10 @@ impl KaspaDbClient {
                 }
                 version = self.select_var("schema_version").await?.parse::<u8>().unwrap();
                 if version < Self::SCHEMA_VERSION {
-                    panic!("Found old & unsupported schema v{version}",)
+                    panic!("Found old & unsupported schema v{version}")
                 }
                 if version > Self::SCHEMA_VERSION {
-                    panic!("Found newer & unsupported schema v{version}",)
+                    panic!("Found newer & unsupported schema v{version}")
                 }
                 info!("Schema v{} is up to date", version)
             }
