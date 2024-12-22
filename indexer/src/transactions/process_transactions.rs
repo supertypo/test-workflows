@@ -46,7 +46,6 @@ pub async fn process_transactions(
     let mut tx_addresses = vec![];
     let mut last_block_time = 0;
     let mut last_commit_time = Instant::now();
-    let mut valid_address = false;
 
     let mut subnetwork_map = SubnetworkMap::new();
     let results = database.select_subnetworks().await.expect("Select subnetworks FAILED");
@@ -68,10 +67,6 @@ pub async fn process_transactions(
                         subnetwork_key
                     }
                 };
-                if !valid_address {
-                    validate_address(&rpc_transaction);
-                    valid_address = true;
-                }
                 let transaction_id =
                     rpc_transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing").transaction_id;
                 if tx_id_cache.contains_key(&transaction_id) {
@@ -219,13 +214,4 @@ async fn insert_block_txs(batch_scale: f64, values: Vec<BlockTransaction>, datab
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     return rows_affected;
-}
-
-fn validate_address(rpc_transaction: &RpcTransaction) {
-    if let Some(first_output) = rpc_transaction.outputs.first() {
-        let verbose_data = first_output.verbose_data.as_ref().expect("Tx output verbose_data is missing");
-        if !verbose_data.script_public_key_address.prefix.to_string().starts_with("kaspa") {
-            panic!("Unexpected address");
-        }
-    }
 }
