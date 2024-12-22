@@ -63,7 +63,7 @@ impl KaspaBlocksFetcher {
         }
     }
 
-    pub async fn start(&mut self) -> () {
+    pub async fn start(&mut self) {
         self.run.store(true, Ordering::Relaxed);
         self.fetch_blocks().await;
     }

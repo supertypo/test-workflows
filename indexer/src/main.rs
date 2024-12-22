@@ -76,7 +76,7 @@ async fn start_processing(
         }
     }
     let block_dag_info = block_dag_info.unwrap();
-    let net_bps = if block_dag_info.network.suffix.filter(|s| s.to_owned() == 11).is_some() { 10 } else { 1 };
+    let net_bps = if block_dag_info.network.suffix.filter(|s| *s == 11).is_some() { 10 } else { 1 };
     let net_tps_max = net_bps as u16 * 300;
     info!("Assuming {} block(s) per second for cache sizes", net_bps);
 
@@ -87,20 +87,18 @@ async fn start_processing(
             checkpoint = block_dag_info.pruning_point_hash;
             info!("Starting from pruning_point {}", checkpoint);
         } else if ignore_checkpoint == "v" {
-            checkpoint = *block_dag_info.virtual_parent_hashes.get(0).expect("Virtual parent not found");
+            checkpoint = *block_dag_info.virtual_parent_hashes.first().expect("Virtual parent not found");
             info!("Starting from virtual_parent {}", checkpoint);
         } else {
             checkpoint = KaspaHash::from_str(ignore_checkpoint.as_str()).expect("Supplied block hash is invalid");
             info!("Starting from user supplied block {}", checkpoint);
         }
+    } else if let Ok(saved_block_checkpoint) = load_block_checkpoint(&database).await {
+        checkpoint = KaspaHash::from_str(saved_block_checkpoint.as_str()).expect("Saved checkpoint is invalid!");
+        info!("Starting from checkpoint {}", checkpoint);
     } else {
-        if let Ok(saved_block_checkpoint) = load_block_checkpoint(&database).await {
-            checkpoint = KaspaHash::from_str(saved_block_checkpoint.as_str()).expect("Saved checkpoint is invalid!");
-            info!("Starting from checkpoint {}", checkpoint);
-        } else {
-            checkpoint = *block_dag_info.virtual_parent_hashes.get(0).expect("Virtual parent not found");
-            warn!("Checkpoint not found, starting from virtual_parent {}", checkpoint);
-        }
+        checkpoint = *block_dag_info.virtual_parent_hashes.first().expect("Virtual parent not found");
+        warn!("Checkpoint not found, starting from virtual_parent {}", checkpoint);
     }
     if cli_args.vcp_before_synced {
         warn!("VCP before synced is enabled. Starting VCP as soon as the filler has caught up to the previous run")

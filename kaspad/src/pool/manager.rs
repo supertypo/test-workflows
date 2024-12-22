@@ -20,7 +20,7 @@ impl Manager for KaspadManager {
 
     async fn create(&self) -> Result<Self::Type, Self::Error> {
         debug!("Creating connection");
-        Ok(Arc::new(connect_client(self.network_id.clone(), self.rpc_url.clone()).await?))
+        Ok(Arc::new(connect_client(self.network_id, self.rpc_url.clone()).await?))
     }
 
     async fn recycle(&self, conn: &mut Self::Type, _: &Metrics) -> RecycleResult<Self::Error> {
@@ -49,15 +49,15 @@ pub async fn connect_client(network_id: NetworkId, rpc_url: Option<String>) -> R
     let connected_network = format!(
         "{}{}",
         server_info.network_id.network_type,
-        server_info.network_id.suffix.map(|s| format!("-{}", s.to_string())).unwrap_or_default()
+        server_info.network_id.suffix.map(|s| format!("-{}", s)).unwrap_or_default()
     );
     info!("Connected to Kaspad {} version: {}, network: {}", url, server_info.server_version, connected_network);
 
     if network_id != server_info.network_id {
         panic!("Network mismatch, expected '{}', actual '{}'", network_id, connected_network);
-    } else if server_info.network_id.network_type == RpcNetworkType::Mainnet && server_info.virtual_daa_score < 76902846 {
-        panic!("Invalid network");
-    } else if !server_info.is_synced {
+    } else if !server_info.is_synced
+        || server_info.network_id.network_type == RpcNetworkType::Mainnet && server_info.virtual_daa_score < 98218415
+    {
         let err_msg = format!("Kaspad {} is NOT synced", server_info.server_version);
         warn!("{err_msg}");
         Err(Error::Custom(err_msg))

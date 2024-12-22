@@ -85,7 +85,7 @@ pub async fn process_transactions(
                 block_tx.push(mapper.map_block_transaction(&rpc_transaction));
             }
 
-            if block_tx.len() >= batch_size || (block_tx.len() >= 1 && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
+            if block_tx.len() >= batch_size || (!block_tx.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
                 let start_commit_time = Instant::now();
                 let transactions_len = transactions.len();
                 let transaction_ids = transactions.iter().map(|t| t.transaction_id.clone()).collect();
@@ -144,10 +144,10 @@ async fn insert_txs(batch_scale: f64, values: Vec<Transaction>, database: KaspaD
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_transactions(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
-    return rows_affected;
+    rows_affected
 }
 
 async fn insert_tx_inputs(batch_scale: f64, values: Vec<TransactionInput>, database: KaspaDbClient) -> u64 {
@@ -157,10 +157,10 @@ async fn insert_tx_inputs(batch_scale: f64, values: Vec<TransactionInput>, datab
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_transaction_inputs(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_transaction_inputs(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
-    return rows_affected;
+    rows_affected
 }
 
 async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, database: KaspaDbClient) -> u64 {
@@ -170,10 +170,10 @@ async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, dat
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_transaction_outputs(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_transaction_outputs(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
-    return rows_affected;
+    rows_affected
 }
 
 async fn insert_input_tx_addr(batch_scale: f64, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
@@ -184,10 +184,10 @@ async fn insert_input_tx_addr(batch_scale: f64, values: Vec<SqlHash>, database: 
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
         rows_affected +=
-            database.insert_address_transactions_from_inputs(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+            database.insert_address_transactions_from_inputs(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
-    return rows_affected;
+    rows_affected
 }
 
 async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>, database: KaspaDbClient) -> u64 {
@@ -197,10 +197,10 @@ async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_address_transactions(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_address_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
-    return rows_affected;
+    rows_affected
 }
 
 async fn insert_block_txs(batch_scale: f64, values: Vec<BlockTransaction>, database: KaspaDbClient) -> u64 {
@@ -210,8 +210,8 @@ async fn insert_block_txs(batch_scale: f64, values: Vec<BlockTransaction>, datab
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_block_transactions(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_block_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
-    return rows_affected;
+    rows_affected
 }

@@ -13,7 +13,7 @@ use crate::models::types::hash::Hash;
 
 pub async fn insert_subnetwork(subnetwork_id: &String, pool: &Pool<Postgres>) -> Result<i32, Error> {
     sqlx::query("INSERT INTO subnetworks (subnetwork_id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id")
-        .bind(&subnetwork_id)
+        .bind(subnetwork_id)
         .fetch_one(pool)
         .await?
         .try_get(0)
@@ -38,16 +38,16 @@ pub async fn insert_blocks(blocks: &[Block], pool: &Pool<Postgres>) -> Result<u6
         query = query.bind(&block.merge_set_blues_hashes);
         query = query.bind(&block.merge_set_reds_hashes);
         query = query.bind(&block.selected_parent_hash);
-        query = query.bind(&block.bits);
-        query = query.bind(&block.blue_score);
+        query = query.bind(block.bits);
+        query = query.bind(block.blue_score);
         query = query.bind(&block.blue_work);
-        query = query.bind(&block.daa_score);
+        query = query.bind(block.daa_score);
         query = query.bind(&block.hash_merkle_root);
         query = query.bind(&block.nonce);
         query = query.bind(&block.pruning_point);
-        query = query.bind(&block.timestamp);
+        query = query.bind(block.timestamp);
         query = query.bind(&block.utxo_commitment);
-        query = query.bind(&block.version);
+        query = query.bind(block.version);
     }
     let rows_affected = tx.execute(query).await?.rows_affected();
     tx.commit().await?;
@@ -79,11 +79,11 @@ pub async fn insert_transactions(transactions: &[Transaction], pool: &Pool<Postg
     let mut query = sqlx::query(&sql);
     for tx in transactions {
         query = query.bind(&tx.transaction_id);
-        query = query.bind(&tx.subnetwork_id);
+        query = query.bind(tx.subnetwork_id);
         query = query.bind(&tx.hash);
-        query = query.bind(&tx.mass);
+        query = query.bind(tx.mass);
         query = query.bind(&tx.payload);
-        query = query.bind(&tx.block_time);
+        query = query.bind(tx.block_time);
     }
     Ok(query.execute(pool).await?.rows_affected())
 }
@@ -99,12 +99,12 @@ pub async fn insert_transaction_inputs(transaction_inputs: &[TransactionInput], 
     let mut query = sqlx::query(&sql);
     for tin in transaction_inputs {
         query = query.bind(&tin.transaction_id);
-        query = query.bind(&tin.index);
+        query = query.bind(tin.index);
         query = query.bind(&tin.previous_outpoint_hash);
-        query = query.bind(&tin.previous_outpoint_index);
+        query = query.bind(tin.previous_outpoint_index);
         query = query.bind(&tin.signature_script);
-        query = query.bind(&tin.sig_op_count);
-        query = query.bind(&tin.block_time);
+        query = query.bind(tin.sig_op_count);
+        query = query.bind(tin.block_time);
     }
     Ok(query.execute(pool).await?.rows_affected())
 }
@@ -119,11 +119,11 @@ pub async fn insert_transaction_outputs(transaction_outputs: &[TransactionOutput
     let mut query = sqlx::query(&sql);
     for tout in transaction_outputs {
         query = query.bind(&tout.transaction_id);
-        query = query.bind(&tout.index);
-        query = query.bind(&tout.amount);
+        query = query.bind(tout.index);
+        query = query.bind(tout.amount);
         query = query.bind(&tout.script_public_key);
         query = query.bind(&tout.script_public_key_address);
-        query = query.bind(&tout.block_time);
+        query = query.bind(tout.block_time);
     }
     Ok(query.execute(pool).await?.rows_affected())
 }
@@ -139,7 +139,7 @@ pub async fn insert_address_transactions(address_transactions: &[AddressTransact
     for address_transaction in address_transactions {
         query = query.bind(&address_transaction.address);
         query = query.bind(&address_transaction.transaction_id);
-        query = query.bind(&address_transaction.block_time);
+        query = query.bind(address_transaction.block_time);
     }
     Ok(query.execute(pool).await?.rows_affected())
 }

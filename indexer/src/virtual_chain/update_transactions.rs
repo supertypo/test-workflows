@@ -24,7 +24,7 @@ pub async fn update_txs(
     let mut rows_added = 0;
 
     debug!("Processing {} removed chain blocks", removed_hashes.len());
-    let removed_blocks = removed_hashes.into_iter().map(|h| h.to_owned().into()).collect::<Vec<_>>();
+    let removed_blocks = removed_hashes.iter().map(|h| h.to_owned().into()).collect::<Vec<_>>();
     for removed_blocks_chunk in removed_blocks.chunks(batch_size) {
         rows_removed += database.delete_transaction_acceptances(removed_blocks_chunk).await.unwrap();
     }
@@ -51,7 +51,7 @@ pub async fn update_txs(
             accepted_transactions = vec![];
         }
     }
-    if accepted_transactions.len() > 0 {
+    if !accepted_transactions.is_empty() {
         rows_added += database.insert_transaction_acceptances(&accepted_transactions).await.unwrap();
     }
 

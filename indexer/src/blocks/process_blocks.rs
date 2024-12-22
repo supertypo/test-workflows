@@ -54,18 +54,16 @@ pub async fn process_blocks(
                 blocks_parents.extend(mapper.map_block_parents(&block_data.block));
             }
             let tx_count = mapper.count_block_transactions(&block_data.block);
-            if Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_SAVE_INTERVAL {
-                if let None = checkpoint {
-                    // Select the current block as checkpoint if none is set
-                    checkpoint = Some(Checkpoint { block_hash: block.hash.clone(), tx_count: tx_count as i64 })
-                }
+            if Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_SAVE_INTERVAL && checkpoint.is_none() {
+                // Select the current block as checkpoint candidate
+                checkpoint = Some(Checkpoint { block_hash: block.hash.clone(), tx_count: tx_count as i64 })
             }
             if !vcp_started {
                 block_hashes.push(block.hash.clone());
             }
             blocks.push(block);
 
-            if blocks.len() >= batch_size || (blocks.len() >= 1 && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
+            if blocks.len() >= batch_size || (!blocks.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
                 let start_commit_time = Instant::now();
                 debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
                 let blocks_len = blocks.len();
@@ -159,7 +157,7 @@ async fn insert_blocks(batch_scale: f64, values: Vec<Block>, database: KaspaDbCl
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_blocks(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_blocks(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -172,7 +170,7 @@ async fn insert_block_parents(batch_scale: f64, values: Vec<BlockParent>, databa
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_block_parents(batch_values).await.expect(format!("Insert {} FAILED", key).as_str());
+        rows_affected += database.insert_block_parents(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
