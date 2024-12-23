@@ -42,9 +42,10 @@ If you have an archival node, you can specify the start-block using the --ignore
 Please make contact with us on the [Kaspa Discord](https://kaspa.org) if you need a pg_dump-file of historical records.
 
 # License
-ISC. See LICENSE.
+ISC, which means this software can be freely modified to any specific need and redistributed (under certain terms).  
+Please be so kind as to contribute back features you think could be beneficial to the general community.
 
-### Donations
+### Contribute to development
 kaspa:qrjtsnnpjyvlmkffdqyayrny3qyen9yjkpuw7xvhsz36n69wmrfdyf3nwv67t
 
 # Getting started
