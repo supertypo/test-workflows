@@ -67,14 +67,22 @@ pub async fn process_blocks(
                 let start_commit_time = Instant::now();
                 debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
                 let blocks_len = blocks.len();
-                let blocks_inserted = insert_blocks(batch_scale, blocks, database.clone()).await;
+                let blocks_inserted = if !settings.cli_args.skip_blocks {
+                    insert_blocks(batch_scale, blocks, database.clone()).await
+                } else {
+                    0
+                };
                 let block_parents_inserted = if !settings.cli_args.skip_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
                 } else {
                     0
                 };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                let bps = blocks_len as f64 / commit_time as f64 * 1000f64;
+                let bps = if !settings.cli_args.skip_blocks || !settings.cli_args.skip_block_relations {
+                    blocks_len as f64 / commit_time as f64 * 1000f64
+                } else {
+                    0f64
+                };
                 blocks = vec![];
                 blocks_parents = vec![];
 
@@ -83,7 +91,7 @@ pub async fn process_blocks(
                     let tas_deleted =
                         database.delete_transaction_acceptances(&block_hashes).await.expect("Delete transactions_acceptances FAILED");
                     block_hashes = vec![];
-                    if (vcp_before_synced || synced) && blocks_inserted > 0 && tas_deleted == 0 {
+                    if (vcp_before_synced || synced) && tas_deleted == 0 {
                         noop_delete_count += 1;
                     } else {
                         noop_delete_count = 0;

@@ -102,11 +102,14 @@ async fn start_processing(
     if cli_args.vcp_before_synced {
         warn!("VCP before synced is enabled. Starting VCP as soon as the filler has caught up to the previous run")
     }
-    if cli_args.skip_resolving_addresses {
-        info!("Skip resolving addresses is enabled")
+    if cli_args.skip_blocks {
+        info!("Blocks disabled")
     }
     if cli_args.skip_block_relations {
         info!("Block relations disabled")
+    }
+    if cli_args.skip_resolving_addresses {
+        info!("Skip resolving addresses is enabled")
     }
     if let Some(include_fields) = &cli_args.include_fields {
         info!("Include fields is set, the following (non-required) fields will be included: {:?}", include_fields);
