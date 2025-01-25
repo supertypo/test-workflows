@@ -102,13 +102,16 @@ async fn start_processing(
     if cli_args.vcp_before_synced {
         warn!("VCP before synced is enabled. Starting VCP as soon as the filler has caught up to the previous run")
     }
-    if cli_args.skip_blocks {
+    if cli_args.disable_transactions {
+        info!("Transactions disabled")
+    }
+    if cli_args.disable_blocks {
         info!("Blocks disabled")
     }
-    if cli_args.skip_block_relations {
+    if cli_args.disable_block_relations {
         info!("Block relations disabled")
     }
-    if cli_args.skip_resolving_addresses {
+    if cli_args.disable_address_transactions {
         info!("Skip resolving addresses is enabled")
     }
     if let Some(include_fields) = &cli_args.include_fields {

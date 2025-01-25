@@ -50,7 +50,7 @@ pub async fn process_blocks(
             let synced = block_data.synced;
             let last_block_datetime = DateTime::from_timestamp_millis(block_data.block.header.timestamp as i64 / 1000 * 1000).unwrap();
             let block = mapper.map_block(&block_data.block);
-            if !settings.cli_args.skip_block_relations {
+            if !settings.cli_args.disable_block_relations {
                 blocks_parents.extend(mapper.map_block_parents(&block_data.block));
             }
             let tx_count = mapper.count_block_transactions(&block_data.block);
@@ -67,18 +67,18 @@ pub async fn process_blocks(
                 let start_commit_time = Instant::now();
                 debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
                 let blocks_len = blocks.len();
-                let blocks_inserted = if !settings.cli_args.skip_blocks {
+                let blocks_inserted = if !settings.cli_args.disable_blocks {
                     insert_blocks(batch_scale, blocks, database.clone()).await
                 } else {
                     0
                 };
-                let block_parents_inserted = if !settings.cli_args.skip_block_relations {
+                let block_parents_inserted = if !settings.cli_args.disable_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
                 } else {
                     0
                 };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                let bps = if !settings.cli_args.skip_blocks || !settings.cli_args.skip_block_relations {
+                let bps = if !settings.cli_args.disable_blocks || !settings.cli_args.disable_block_relations {
                     blocks_len as f64 / commit_time as f64 * 1000f64
                 } else {
                     0f64
@@ -107,13 +107,20 @@ pub async fn process_blocks(
                         checkpoint_last_saved = Instant::now(); // Give VCP time to catch up before complaining
                     }
                 } else {
-                    info!(
-                        "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
-                        blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
-                    );
+                    if blocks_inserted > 0 || block_parents_inserted > 0 {
+                        info!(
+                            "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
+                            blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
+                        );
+                    }
                     if let Some(c) = checkpoint {
-                        // Check if the checkpoint candidate's transactions are present
-                        let count: i64 = database.select_tx_count(&c.block_hash).await.expect("Get tx count FAILED");
+                        let count = if !settings.cli_args.disable_transactions {
+                            // Check if the checkpoint candidate's transactions are present
+                            database.select_tx_count(&c.block_hash).await.expect("Get tx count FAILED")
+                        } else {
+                            // Bypass the check if transactions are disabled
+                            c.tx_count
+                        };
                         if count == c.tx_count {
                             // Next, let's check if the VCP has proccessed it
                             let is_chain_block = database.select_is_chain_block(&c.block_hash).await.expect("Get is cb FAILED");

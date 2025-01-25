@@ -48,12 +48,14 @@ pub struct CliArgs {
     pub ignore_checkpoint: Option<String>,
     #[clap(long, help = "Start VCP as soon as the filler has passed the previous run. Use with care")]
     pub vcp_before_synced: bool,
-    #[clap(long, help = "Reduces database load by not tracking blocks in a separate table")]
-    pub skip_blocks: bool,
-    #[clap(long, help = "Reduces database load by not tracking block relations in a separate table")]
-    pub skip_block_relations: bool,
-    #[clap(long, help = "Reduces database load by not tracking an address's transactions in a separate table")]
-    pub skip_resolving_addresses: bool,
+    #[clap(long, help = "Disable transactions")]
+    pub disable_transactions: bool,
+    #[clap(long, help = "Disable blocks")]
+    pub disable_blocks: bool,
+    #[clap(long, help = "Disable block relations")]
+    pub disable_block_relations: bool,
+    #[clap(long, help = "Disable address to transactions mapping")]
+    pub disable_address_transactions: bool,
     #[clap(short, long, help = "Auto-upgrades older db schemas. Use with care")]
     pub upgrade_db: bool,
     #[clap(short = 'c', long, help = "(Re-)initializes the database schema. Use with care")]

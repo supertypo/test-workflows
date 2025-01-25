@@ -10,7 +10,7 @@ use deadpool::managed::{Object, Pool};
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::api::rpc::RpcApi;
 use kaspa_rpc_core::{GetBlocksResponse, RpcBlock, RpcTransaction};
-use log::info;
+use log::{error, info};
 use log::{debug, trace, warn};
 use moka::sync::Cache;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
@@ -23,6 +23,7 @@ pub struct BlockData {
 }
 
 pub struct KaspaBlocksFetcher {
+    settings: Settings,
     run: Arc<AtomicBool>,
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     blocks_queue: Arc<ArrayQueue<BlockData>>,
@@ -49,12 +50,14 @@ impl KaspaBlocksFetcher {
         let cache_size = settings.net_bps as u64 * ttl * 2;
         let block_cache: Cache<KaspaHash, ()> =
             Cache::builder().time_to_live(Duration::from_secs(ttl)).max_capacity(cache_size).build();
+        let low_hash = settings.checkpoint;
         KaspaBlocksFetcher {
+            settings,
             run,
             kaspad_pool,
             blocks_queue,
             txs_queue,
-            low_hash: settings.checkpoint,
+            low_hash,
             last_sync_check: Instant::now() - Self::SYNC_CHECK_INTERVAL,
             synced: false,
             lag_count: 0,
@@ -106,7 +109,8 @@ impl KaspaBlocksFetcher {
                             sleep(Duration::from_secs(2)).await;
                         }
                     }
-                    Err(_) => {
+                    Err(e) => {
+                        error!("Failed getting blocks with low_hash {}: {}", self.low_hash.to_string(), e);
                         let _ = kaspad.disconnect().await;
                         sleep(Duration::from_secs(5)).await;
                     }
@@ -147,7 +151,9 @@ impl KaspaBlocksFetcher {
                 synced: self.synced,
             };
             self.blocks_queue.push(block_data).expect("Failed to enqueue block data");
-            self.txs_queue.push(b.transactions).expect("Failed to enqueue transactions");
+            if !self.settings.cli_args.disable_transactions {
+                self.txs_queue.push(b.transactions).expect("Failed to enqueue transactions");
+            }
             self.block_cache.insert(block_hash, ());
         }
         self.lag_count = self.check_lag(self.synced, self.lag_count, newest_block_timestamp);
