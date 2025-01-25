@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
+use simply_kaspa_cli::cli_args::CliDisable;
 
 pub async fn process_virtual_chain(
     settings: Settings,
@@ -20,6 +21,7 @@ pub async fn process_virtual_chain(
     database: KaspaDbClient,
 ) {
     let batch_scale = settings.cli_args.batch_scale;
+    let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
     let mut start_hash = settings.checkpoint;
 
     let start_time = Instant::now();
@@ -34,14 +36,14 @@ pub async fn process_virtual_chain(
         debug!("Getting virtual chain from start_hash {}", start_hash.to_string());
         match kaspad_pool.get().await {
             Ok(kaspad) => {
-                match kaspad.get_virtual_chain_from_block(start_hash, !settings.cli_args.disable_transactions).await {
+                match kaspad.get_virtual_chain_from_block(start_hash, !disable_transaction_processing).await {
                     Ok(res) => {
                         let added_blocks_count = res.added_chain_block_hashes.len();
                         if !res.added_chain_block_hashes.is_empty() {
                             let last_accepting = *res.added_chain_block_hashes.last().unwrap();
                             let timestamp = kaspad.get_block(last_accepting, false).await.unwrap().header.timestamp;
                             let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
-                            if !settings.cli_args.disable_transactions {
+                            if !disable_transaction_processing {
                                 let rows_added = accept_transactions(batch_scale, &res.accepted_transaction_ids, &database).await;
                                 info!(
                                     "Committed {} accepted and {} rejected transactions. Last accepted: {}",

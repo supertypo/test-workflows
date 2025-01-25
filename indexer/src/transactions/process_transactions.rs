@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::task;
 use tokio::time::sleep;
-
+use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::address_transaction::AddressTransaction;
 use simply_kaspa_database::models::block_transaction::BlockTransaction;
@@ -38,6 +38,8 @@ pub async fn process_transactions(
 
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (5000f64 * batch_scale) as usize;
+
+    let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
 
     let mut transactions = vec![];
     let mut block_tx = vec![];
@@ -77,7 +79,7 @@ pub async fn process_transactions(
                     transactions.push(transaction);
                     tx_inputs.extend(mapper.map_transaction_inputs(&rpc_transaction));
                     tx_outputs.extend(mapper.map_transaction_outputs(&rpc_transaction));
-                    if !settings.cli_args.disable_address_transactions {
+                    if !disable_address_transactions {
                         tx_addresses.extend(mapper.map_transaction_outputs_address(&rpc_transaction));
                     }
                     tx_id_cache.insert(transaction_id, ());
@@ -95,7 +97,7 @@ pub async fn process_transactions(
                 let tx_inputs_handle = task::spawn(insert_tx_inputs(batch_scale, tx_inputs, database.clone()));
                 let tx_outputs_handle = task::spawn(insert_tx_outputs(batch_scale, tx_outputs, database.clone()));
                 let mut rows_affected_tx_addresses = 0;
-                if !settings.cli_args.disable_address_transactions {
+                if !disable_address_transactions {
                     let tx_output_addr_handle = task::spawn(insert_output_tx_addr(batch_scale, tx_addresses, database.clone()));
                     rows_affected_tx_addresses += tx_output_addr_handle.await.unwrap()
                 }
@@ -103,7 +105,7 @@ pub async fn process_transactions(
                 let rows_affected_tx_inputs = tx_inputs_handle.await.unwrap();
                 let rows_affected_tx_outputs = tx_outputs_handle.await.unwrap();
 
-                if !settings.cli_args.disable_address_transactions {
+                if !disable_address_transactions {
                     // ^Input address resolving can only happen after the transaction + inputs + outputs are committed
                     rows_affected_tx_addresses += insert_input_tx_addr(batch_scale, transaction_ids, database.clone()).await;
                 }

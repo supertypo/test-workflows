@@ -15,6 +15,7 @@ use log::{debug, trace, warn};
 use moka::sync::Cache;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use tokio::time::sleep;
+use simply_kaspa_cli::cli_args::CliDisable;
 
 #[derive(Debug)]
 pub struct BlockData {
@@ -23,7 +24,7 @@ pub struct BlockData {
 }
 
 pub struct KaspaBlocksFetcher {
-    settings: Settings,
+    disable_transaction_processing: bool,
     run: Arc<AtomicBool>,
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     blocks_queue: Arc<ArrayQueue<BlockData>>,
@@ -50,9 +51,10 @@ impl KaspaBlocksFetcher {
         let cache_size = settings.net_bps as u64 * ttl * 2;
         let block_cache: Cache<KaspaHash, ()> =
             Cache::builder().time_to_live(Duration::from_secs(ttl)).max_capacity(cache_size).build();
+        let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
         let low_hash = settings.checkpoint;
         KaspaBlocksFetcher {
-            settings,
+            disable_transaction_processing,
             run,
             kaspad_pool,
             blocks_queue,
@@ -151,7 +153,7 @@ impl KaspaBlocksFetcher {
                 synced: self.synced,
             };
             self.blocks_queue.push(block_data).expect("Failed to enqueue block data");
-            if !self.settings.cli_args.disable_transactions {
+            if !self.disable_transaction_processing {
                 self.txs_queue.push(b.transactions).expect("Failed to enqueue transactions");
             }
             self.block_cache.insert(block_hash, ());

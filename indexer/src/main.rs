@@ -99,20 +99,8 @@ async fn start_processing(
         checkpoint = *block_dag_info.virtual_parent_hashes.first().expect("Virtual parent not found");
         warn!("Checkpoint not found, starting from virtual_parent {}", checkpoint);
     }
-    if cli_args.vcp_before_synced {
-        warn!("VCP before synced is enabled. Starting VCP as soon as the filler has caught up to the previous run")
-    }
-    if cli_args.disable_transactions {
-        info!("Transactions disabled")
-    }
-    if cli_args.disable_blocks {
-        info!("Blocks disabled")
-    }
-    if cli_args.disable_block_relations {
-        info!("Block relations disabled")
-    }
-    if cli_args.disable_address_transactions {
-        info!("Skip resolving addresses is enabled")
+    if let Some(disable) = &cli_args.disable {
+        info!("Disable functionality is set, the following functionality will be disabled: {:?}", disable);
     }
     if let Some(include_fields) = &cli_args.include_fields {
         info!("Include fields is set, the following (non-required) fields will be included: {:?}", include_fields);
