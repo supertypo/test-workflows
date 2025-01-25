@@ -6,7 +6,7 @@ use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::api::rpc::RpcApi;
 use kaspa_wrpc_client::prelude::NetworkId;
 use log::{info, trace, warn};
-use simply_kaspa_cli::cli_args::CliArgs;
+use simply_kaspa_cli::cli_args::{CliArgs, CliDisable};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_indexer::blocks::fetch_blocks::KaspaBlocksFetcher;
 use simply_kaspa_indexer::blocks::process_blocks::process_blocks;
@@ -124,7 +124,7 @@ async fn start_processing(
     let mut block_fetcher =
         KaspaBlocksFetcher::new(settings.clone(), run.clone(), kaspad_pool.clone(), blocks_queue.clone(), txs_queue.clone());
 
-    let tasks = vec![
+    let mut tasks = vec![
         task::spawn(async move { block_fetcher.start().await }),
         task::spawn(process_blocks(
             settings.clone(),
@@ -135,8 +135,10 @@ async fn start_processing(
             mapper.clone(),
         )),
         task::spawn(process_transactions(settings.clone(), run.clone(), txs_queue.clone(), database.clone(), mapper.clone())),
-        task::spawn(process_virtual_chain(settings.clone(), run.clone(), start_vcp.clone(), kaspad_pool.clone(), database.clone())),
     ];
+    if !settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing) {
+        tasks.push(task::spawn(process_virtual_chain(settings.clone(), run.clone(), start_vcp.clone(), kaspad_pool.clone(), database.clone())))
+    }
     try_join_all(tasks).await.unwrap();
     Ok(())
 }

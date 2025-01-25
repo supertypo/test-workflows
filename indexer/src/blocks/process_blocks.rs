@@ -35,6 +35,7 @@ pub async fn process_blocks(
     const CHECKPOINT_WARN_AFTER: u64 = 5 * CHECKPOINT_SAVE_INTERVAL;
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (500f64 * batch_scale) as usize;
+    let disable_virtual_chain_processing = settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
     let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
     let disable_vcp_wait_for_sync = settings.cli_args.is_disabled(CliDisable::VcpWaitForSync);
     let disable_blocks = settings.cli_args.is_disabled(CliDisable::BlocksTable);
@@ -90,7 +91,7 @@ pub async fn process_blocks(
                 blocks = vec![];
                 blocks_parents = vec![];
 
-                if !vcp_started {
+                if !vcp_started && !disable_virtual_chain_processing {
                     checkpoint = None; // Clear the checkpoint block until vcp has been started
                     let tas_deleted =
                         database.delete_transaction_acceptances(&block_hashes).await.expect("Delete transactions_acceptances FAILED");
@@ -127,7 +128,7 @@ pub async fn process_blocks(
                         if count == c.tx_count {
                             // Next, let's check if the VCP has proccessed it
                             let is_chain_block = database.select_is_chain_block(&c.block_hash).await.expect("Get is cb FAILED");
-                            if is_chain_block {
+                            if is_chain_block || disable_virtual_chain_processing {
                                 // All set, the checkpoint block has all transactions present and are marked as a chain block by the VCP
                                 let checkpoint_string = hex::encode(c.block_hash.as_bytes());
                                 info!("Saving block_checkpoint {}", checkpoint_string);
