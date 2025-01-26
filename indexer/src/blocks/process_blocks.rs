@@ -63,19 +63,16 @@ pub async fn process_blocks(
                 // Select the current block as checkpoint candidate
                 checkpoint = Some(Checkpoint { block_hash: block.hash.clone(), tx_count: tx_count as i64 })
             }
-            if !vcp_started {
-                block_hashes.push(block.hash.clone());
-            }
+            block_hashes.push(block.hash.clone());
             if !disable_blocks {
                 blocks.push(block);
             }
 
-            let blocks_len = blocks.len();
-            if blocks_len >= batch_size
-                || ((!blocks.is_empty() || disable_blocks) && Instant::now().duration_since(last_commit_time).as_secs() > 2)
+            if block_hashes.len() >= batch_size
+                || (!block_hashes.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2)
             {
                 let start_commit_time = Instant::now();
-                debug!("Committing {} blocks ({} parents)", blocks_len, blocks_parents.len());
+                debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
                 let blocks_inserted = if !disable_blocks { insert_blocks(batch_scale, blocks, database.clone()).await } else { 0 };
                 let block_parents_inserted = if !disable_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
@@ -83,10 +80,11 @@ pub async fn process_blocks(
                     0
                 };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                let bps =
-                    if !disable_blocks || !disable_block_relations { blocks_len as f64 / commit_time as f64 * 1000f64 } else { 0f64 };
-                blocks = vec![];
-                blocks_parents = vec![];
+                let bps = if !disable_blocks || !disable_block_relations {
+                    blocks.len() as f64 / commit_time as f64 * 1000f64
+                } else {
+                    0f64
+                };
 
                 if !vcp_started && !disable_virtual_chain_processing {
                     checkpoint = None; // Clear the checkpoint block until vcp has been started
@@ -158,6 +156,9 @@ pub async fn process_blocks(
                         }
                     }
                 }
+                blocks = vec![];
+                block_hashes = vec![];
+                blocks_parents = vec![];
                 last_commit_time = Instant::now();
             }
         } else {
