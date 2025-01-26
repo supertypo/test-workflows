@@ -9,6 +9,7 @@ use crate::vars::save_checkpoint;
 use chrono::DateTime;
 use crossbeam_queue::ArrayQueue;
 use log::{debug, info, warn};
+use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::block::Block;
 use simply_kaspa_database::models::block_parent::BlockParent;
@@ -34,7 +35,11 @@ pub async fn process_blocks(
     const CHECKPOINT_WARN_AFTER: u64 = 5 * CHECKPOINT_SAVE_INTERVAL;
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (500f64 * batch_scale) as usize;
-    let vcp_before_synced = settings.cli_args.vcp_before_synced;
+    let disable_virtual_chain_processing = settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
+    let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
+    let disable_vcp_wait_for_sync = settings.cli_args.is_disabled(CliDisable::VcpWaitForSync);
+    let disable_blocks = settings.cli_args.is_disabled(CliDisable::BlocksTable);
+    let disable_block_relations = settings.cli_args.is_disabled(CliDisable::BlockRelationsTable);
     let mut vcp_started = false;
     let mut blocks = vec![];
     let mut blocks_parents = vec![];
@@ -50,7 +55,7 @@ pub async fn process_blocks(
             let synced = block_data.synced;
             let last_block_datetime = DateTime::from_timestamp_millis(block_data.block.header.timestamp as i64 / 1000 * 1000).unwrap();
             let block = mapper.map_block(&block_data.block);
-            if !settings.cli_args.skip_block_relations {
+            if !disable_block_relations {
                 blocks_parents.extend(mapper.map_block_parents(&block_data.block));
             }
             let tx_count = mapper.count_block_transactions(&block_data.block);
@@ -61,37 +66,34 @@ pub async fn process_blocks(
             if !vcp_started {
                 block_hashes.push(block.hash.clone());
             }
-            blocks.push(block);
+            if !disable_blocks {
+                blocks.push(block);
+            }
 
-            if blocks.len() >= batch_size || (!blocks.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
+            let blocks_len = blocks.len();
+            if blocks_len >= batch_size
+                || ((!blocks.is_empty() || disable_blocks) && Instant::now().duration_since(last_commit_time).as_secs() > 2)
+            {
                 let start_commit_time = Instant::now();
-                debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
-                let blocks_len = blocks.len();
-                let blocks_inserted = if !settings.cli_args.skip_blocks {
-                    insert_blocks(batch_scale, blocks, database.clone()).await
-                } else {
-                    0
-                };
-                let block_parents_inserted = if !settings.cli_args.skip_block_relations {
+                debug!("Committing {} blocks ({} parents)", blocks_len, blocks_parents.len());
+                let blocks_inserted = if !disable_blocks { insert_blocks(batch_scale, blocks, database.clone()).await } else { 0 };
+                let block_parents_inserted = if !disable_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
                 } else {
                     0
                 };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                let bps = if !settings.cli_args.skip_blocks || !settings.cli_args.skip_block_relations {
-                    blocks_len as f64 / commit_time as f64 * 1000f64
-                } else {
-                    0f64
-                };
+                let bps =
+                    if !disable_blocks || !disable_block_relations { blocks_len as f64 / commit_time as f64 * 1000f64 } else { 0f64 };
                 blocks = vec![];
                 blocks_parents = vec![];
 
-                if !vcp_started {
+                if !vcp_started && !disable_virtual_chain_processing {
                     checkpoint = None; // Clear the checkpoint block until vcp has been started
                     let tas_deleted =
                         database.delete_transaction_acceptances(&block_hashes).await.expect("Delete transactions_acceptances FAILED");
                     block_hashes = vec![];
-                    if (vcp_before_synced || synced) && tas_deleted == 0 {
+                    if (disable_vcp_wait_for_sync || synced) && tas_deleted == 0 {
                         noop_delete_count += 1;
                     } else {
                         noop_delete_count = 0;
@@ -107,17 +109,23 @@ pub async fn process_blocks(
                         checkpoint_last_saved = Instant::now(); // Give VCP time to catch up before complaining
                     }
                 } else {
-                    info!(
-                        "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
-                        blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
-                    );
+                    if blocks_inserted > 0 || block_parents_inserted > 0 {
+                        info!(
+                            "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
+                            blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
+                        );
+                    }
                     if let Some(c) = checkpoint {
+                        let count = if !disable_transaction_processing {
+                            database.select_tx_count(&c.block_hash).await.expect("Get tx count FAILED")
+                        } else {
+                            c.tx_count
+                        };
                         // Check if the checkpoint candidate's transactions are present
-                        let count: i64 = database.select_tx_count(&c.block_hash).await.expect("Get tx count FAILED");
                         if count == c.tx_count {
                             // Next, let's check if the VCP has proccessed it
                             let is_chain_block = database.select_is_chain_block(&c.block_hash).await.expect("Get is cb FAILED");
-                            if is_chain_block {
+                            if is_chain_block || disable_virtual_chain_processing {
                                 // All set, the checkpoint block has all transactions present and are marked as a chain block by the VCP
                                 let checkpoint_string = hex::encode(c.block_hash.as_bytes());
                                 info!("Saving block_checkpoint {}", checkpoint_string);

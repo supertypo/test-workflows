@@ -1,8 +1,11 @@
 use crate::settings::Settings;
-use crate::virtual_chain::update_transactions::update_txs;
+use crate::virtual_chain::accept_transactions::accept_transactions;
+use crate::virtual_chain::add_chain_blocks::add_chain_blocks;
+use crate::virtual_chain::remove_chain_blocks::remove_chain_blocks;
 use deadpool::managed::{Object, Pool};
 use kaspa_rpc_core::api::rpc::RpcApi;
-use log::{debug, info};
+use log::{debug, error, info};
+use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,6 +21,7 @@ pub async fn process_virtual_chain(
     database: KaspaDbClient,
 ) {
     let batch_scale = settings.cli_args.batch_scale;
+    let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
     let mut start_hash = settings.checkpoint;
 
     let start_time = Instant::now();
@@ -32,20 +36,30 @@ pub async fn process_virtual_chain(
         debug!("Getting virtual chain from start_hash {}", start_hash.to_string());
         match kaspad_pool.get().await {
             Ok(kaspad) => {
-                match kaspad.get_virtual_chain_from_block(start_hash, true).await {
+                match kaspad.get_virtual_chain_from_block(start_hash, !disable_transaction_processing).await {
                     Ok(res) => {
                         let added_blocks_count = res.added_chain_block_hashes.len();
-                        if !res.accepted_transaction_ids.is_empty() {
-                            let last_accepting = res.accepted_transaction_ids.last().unwrap().accepting_block_hash;
-                            let timestamp = kaspad.get_block(last_accepting, false).await.expect("GetBlock failed").header.timestamp;
-                            update_txs(
-                                batch_scale,
-                                &res.removed_chain_block_hashes,
-                                &res.accepted_transaction_ids,
-                                timestamp,
-                                &database,
-                            )
-                            .await;
+                        if added_blocks_count > 0 {
+                            let last_accepting = *res.added_chain_block_hashes.last().unwrap();
+                            let timestamp = kaspad.get_block(last_accepting, false).await.unwrap().header.timestamp;
+                            let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
+                            if !disable_transaction_processing {
+                                let rows_added = accept_transactions(batch_scale, &res.accepted_transaction_ids, &database).await;
+                                info!(
+                                    "Committed {} accepted and {} rejected transactions. Last accepted: {}",
+                                    rows_added,
+                                    rows_removed,
+                                    chrono::DateTime::from_timestamp_millis(timestamp as i64 / 1000 * 1000).unwrap()
+                                );
+                            } else {
+                                let rows_added = add_chain_blocks(batch_scale, &res.added_chain_block_hashes, &database).await;
+                                info!(
+                                    "Committed {} added and {} removed chain blocks. Last added: {}",
+                                    rows_added,
+                                    rows_removed,
+                                    chrono::DateTime::from_timestamp_millis(timestamp as i64 / 1000 * 1000).unwrap()
+                                );
+                            }
                             start_hash = last_accepting;
                         }
                         // Default batch size is 1800 on 1 bps:
@@ -54,13 +68,17 @@ pub async fn process_virtual_chain(
                             synced = true;
                         }
                     }
-                    Err(_) => {
+                    Err(e) => {
+                        error!("Failed getting virtual chain from start_hash {}: {}", start_hash.to_string(), e);
                         let _ = kaspad.disconnect().await;
                         sleep(Duration::from_secs(5)).await;
                     }
                 }
             }
-            Err(_) => sleep(Duration::from_secs(5)).await,
+            Err(e) => {
+                error!("Failed getting kaspad connection from pool: {}", e);
+                sleep(Duration::from_secs(5)).await
+            }
         }
         if synced {
             sleep(Duration::from_secs(2)).await;
