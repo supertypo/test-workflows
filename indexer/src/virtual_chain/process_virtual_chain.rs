@@ -1,17 +1,17 @@
 use crate::settings::Settings;
-use crate::virtual_chain::remove_chain_blocks::remove_chain_blocks;
-use crate::virtual_chain::add_chain_blocks::add_chain_blocks;
 use crate::virtual_chain::accept_transactions::accept_transactions;
+use crate::virtual_chain::add_chain_blocks::add_chain_blocks;
+use crate::virtual_chain::remove_chain_blocks::remove_chain_blocks;
 use deadpool::managed::{Object, Pool};
 use kaspa_rpc_core::api::rpc::RpcApi;
 use log::{debug, error, info};
+use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use simply_kaspa_cli::cli_args::CliDisable;
 
 pub async fn process_virtual_chain(
     settings: Settings,
@@ -39,8 +39,8 @@ pub async fn process_virtual_chain(
                 match kaspad.get_virtual_chain_from_block(start_hash, !disable_transaction_processing).await {
                     Ok(res) => {
                         let added_blocks_count = res.added_chain_block_hashes.len();
-                        if !res.added_chain_block_hashes.is_empty() {
-                            let last_accepting = *res.added_chain_block_hashes.last().unwrap(); // TODO: Make sure the last added chain block is the same as the last accepted transactions chain block
+                        if added_blocks_count > 0 {
+                            let last_accepting = *res.added_chain_block_hashes.last().unwrap();
                             let timestamp = kaspad.get_block(last_accepting, false).await.unwrap().header.timestamp;
                             let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
                             if !disable_transaction_processing {
@@ -75,8 +75,10 @@ pub async fn process_virtual_chain(
                     }
                 }
             }
-            // TODO: Log error?
-            Err(_) => sleep(Duration::from_secs(5)).await,
+            Err(e) => {
+                error!("Failed getting kaspad connection from pool: {}", e);
+                sleep(Duration::from_secs(5)).await
+            }
         }
         if synced {
             sleep(Duration::from_secs(2)).await;

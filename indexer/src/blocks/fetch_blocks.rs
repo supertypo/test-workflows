@@ -10,12 +10,12 @@ use deadpool::managed::{Object, Pool};
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::api::rpc::RpcApi;
 use kaspa_rpc_core::{GetBlocksResponse, RpcBlock, RpcTransaction};
-use log::{error, info};
 use log::{debug, trace, warn};
+use log::{error, info};
 use moka::sync::Cache;
+use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use tokio::time::sleep;
-use simply_kaspa_cli::cli_args::CliDisable;
 
 #[derive(Debug)]
 pub struct BlockData {
@@ -78,7 +78,7 @@ impl KaspaBlocksFetcher {
             let last_fetch_time = Instant::now();
             debug!("Getting blocks with low_hash {}", self.low_hash.to_string());
             match self.kaspad_pool.get().await {
-                Ok(kaspad) => match kaspad.get_blocks(Some(self.low_hash), true, true).await { // TODO: Remove transactions
+                Ok(kaspad) => match kaspad.get_blocks(Some(self.low_hash), true, !self.disable_transaction_processing).await {
                     Ok(response) => {
                         debug!("Received {} blocks", response.blocks.len());
                         trace!("Block hashes: \n{:#?}", response.block_hashes);
@@ -115,8 +115,10 @@ impl KaspaBlocksFetcher {
                         sleep(Duration::from_secs(5)).await;
                     }
                 },
-                // TODO: Log error?
-                Err(_) => sleep(Duration::from_secs(5)).await,
+                Err(e) => {
+                    error!("Failed getting kaspad connection from pool: {}", e);
+                    sleep(Duration::from_secs(5)).await
+                }
             }
         }
     }

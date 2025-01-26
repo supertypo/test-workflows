@@ -9,13 +9,13 @@ use crate::vars::save_checkpoint;
 use chrono::DateTime;
 use crossbeam_queue::ArrayQueue;
 use log::{debug, info, warn};
+use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::block::Block;
 use simply_kaspa_database::models::block_parent::BlockParent;
 use simply_kaspa_database::models::types::hash::Hash as SqlHash;
 use simply_kaspa_mapping::mapper::KaspaDbMapper;
 use tokio::time::sleep;
-use simply_kaspa_cli::cli_args::CliDisable;
 
 struct Checkpoint {
     block_hash: SqlHash,
@@ -66,29 +66,25 @@ pub async fn process_blocks(
             if !vcp_started {
                 block_hashes.push(block.hash.clone());
             }
-            blocks.push(block);
+            if !disable_blocks {
+                blocks.push(block);
+            }
 
-            if blocks.len() >= batch_size || (!blocks.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
+            let blocks_len = blocks.len();
+            if blocks_len >= batch_size
+                || ((!blocks.is_empty() || disable_blocks) && Instant::now().duration_since(last_commit_time).as_secs() > 2)
+            {
                 let start_commit_time = Instant::now();
-                // TODO: Dont print committing blocks when blocks are disabled
-                debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
-                let blocks_len = blocks.len();
-                let blocks_inserted = if !disable_blocks {
-                    insert_blocks(batch_scale, blocks, database.clone()).await
-                } else {
-                    0
-                };
+                debug!("Committing {} blocks ({} parents)", blocks_len, blocks_parents.len());
+                let blocks_inserted = if !disable_blocks { insert_blocks(batch_scale, blocks, database.clone()).await } else { 0 };
                 let block_parents_inserted = if !disable_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
                 } else {
                     0
                 };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                let bps = if !disable_blocks || !disable_block_relations {
-                    blocks_len as f64 / commit_time as f64 * 1000f64
-                } else {
-                    0f64
-                };
+                let bps =
+                    if !disable_blocks || !disable_block_relations { blocks_len as f64 / commit_time as f64 * 1000f64 } else { 0f64 };
                 blocks = vec![];
                 blocks_parents = vec![];
 
@@ -121,12 +117,12 @@ pub async fn process_blocks(
                     }
                     if let Some(c) = checkpoint {
                         let count = if !disable_transaction_processing {
-                            // Check if the checkpoint candidate's transactions are present
                             database.select_tx_count(&c.block_hash).await.expect("Get tx count FAILED")
                         } else {
                             c.tx_count
                         };
-                        if count == c.tx_count { // TODO: Just add || disable_transaction_processing?
+                        // Check if the checkpoint candidate's transactions are present
+                        if count == c.tx_count {
                             // Next, let's check if the VCP has proccessed it
                             let is_chain_block = database.select_is_chain_block(&c.block_hash).await.expect("Get is cb FAILED");
                             if is_chain_block || disable_virtual_chain_processing {

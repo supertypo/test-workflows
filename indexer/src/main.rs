@@ -137,7 +137,13 @@ async fn start_processing(
         task::spawn(process_transactions(settings.clone(), run.clone(), txs_queue.clone(), database.clone(), mapper.clone())),
     ];
     if !settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing) {
-        tasks.push(task::spawn(process_virtual_chain(settings.clone(), run.clone(), start_vcp.clone(), kaspad_pool.clone(), database.clone())))
+        tasks.push(task::spawn(process_virtual_chain(
+            settings.clone(),
+            run.clone(),
+            start_vcp.clone(),
+            kaspad_pool.clone(),
+            database.clone(),
+        )))
     }
     try_join_all(tasks).await.unwrap();
     Ok(())

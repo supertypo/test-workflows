@@ -12,7 +12,7 @@ pub enum CliDisable {
     BlocksTable,
     /// Disable populating the block_parent table
     BlockRelationsTable,
-    /// Disable populating the block_parent table
+    /// Disable populating the addresses_transactions table
     AddressTransactionTable,
     /// Start VCP as soon as the filler has passed the previous run. Use with care
     VcpWaitForSync,

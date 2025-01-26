@@ -5,7 +5,11 @@ use log::{debug, trace};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::transaction_acceptance::TransactionAcceptance;
 
-pub async fn accept_transactions(batch_scale: f64, accepted_transaction_ids: &Vec<RpcAcceptedTransactionIds>, database: &KaspaDbClient) -> u64 {
+pub async fn accept_transactions(
+    batch_scale: f64,
+    accepted_transaction_ids: &Vec<RpcAcceptedTransactionIds>,
+    database: &KaspaDbClient,
+) -> u64 {
     let batch_size = min((1000f64 * batch_scale) as usize, 7500);
     if log::log_enabled!(log::Level::Debug) {
         let accepted_count = accepted_transaction_ids.iter().map(|t| t.accepted_transaction_ids.len()).sum::<usize>();
