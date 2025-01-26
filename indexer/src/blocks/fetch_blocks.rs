@@ -51,15 +51,13 @@ impl KaspaBlocksFetcher {
         let cache_size = settings.net_bps as u64 * ttl * 2;
         let block_cache: Cache<KaspaHash, ()> =
             Cache::builder().time_to_live(Duration::from_secs(ttl)).max_capacity(cache_size).build();
-        let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
-        let low_hash = settings.checkpoint;
         KaspaBlocksFetcher {
-            disable_transaction_processing,
+            disable_transaction_processing: settings.cli_args.is_disabled(CliDisable::TransactionProcessing),
             run,
             kaspad_pool,
             blocks_queue,
             txs_queue,
-            low_hash,
+            low_hash: settings.checkpoint,
             last_sync_check: Instant::now() - Self::SYNC_CHECK_INTERVAL,
             synced: false,
             lag_count: 0,
@@ -80,7 +78,7 @@ impl KaspaBlocksFetcher {
             let last_fetch_time = Instant::now();
             debug!("Getting blocks with low_hash {}", self.low_hash.to_string());
             match self.kaspad_pool.get().await {
-                Ok(kaspad) => match kaspad.get_blocks(Some(self.low_hash), true, true).await {
+                Ok(kaspad) => match kaspad.get_blocks(Some(self.low_hash), true, true).await { // TODO: Remove transactions
                     Ok(response) => {
                         debug!("Received {} blocks", response.blocks.len());
                         trace!("Block hashes: \n{:#?}", response.block_hashes);
@@ -117,6 +115,7 @@ impl KaspaBlocksFetcher {
                         sleep(Duration::from_secs(5)).await;
                     }
                 },
+                // TODO: Log error?
                 Err(_) => sleep(Duration::from_secs(5)).await,
             }
         }

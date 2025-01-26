@@ -40,7 +40,7 @@ pub async fn process_virtual_chain(
                     Ok(res) => {
                         let added_blocks_count = res.added_chain_block_hashes.len();
                         if !res.added_chain_block_hashes.is_empty() {
-                            let last_accepting = *res.added_chain_block_hashes.last().unwrap();
+                            let last_accepting = *res.added_chain_block_hashes.last().unwrap(); // TODO: Make sure the last added chain block is the same as the last accepted transactions chain block
                             let timestamp = kaspad.get_block(last_accepting, false).await.unwrap().header.timestamp;
                             let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
                             if !disable_transaction_processing {
@@ -75,6 +75,7 @@ pub async fn process_virtual_chain(
                     }
                 }
             }
+            // TODO: Log error?
             Err(_) => sleep(Duration::from_secs(5)).await,
         }
         if synced {

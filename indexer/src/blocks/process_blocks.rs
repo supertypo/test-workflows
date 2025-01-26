@@ -70,6 +70,7 @@ pub async fn process_blocks(
 
             if blocks.len() >= batch_size || (!blocks.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2) {
                 let start_commit_time = Instant::now();
+                // TODO: Dont print committing blocks when blocks are disabled
                 debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
                 let blocks_len = blocks.len();
                 let blocks_inserted = if !disable_blocks {
@@ -125,7 +126,7 @@ pub async fn process_blocks(
                         } else {
                             c.tx_count
                         };
-                        if count == c.tx_count {
+                        if count == c.tx_count { // TODO: Just add || disable_transaction_processing?
                             // Next, let's check if the VCP has proccessed it
                             let is_chain_block = database.select_is_chain_block(&c.block_hash).await.expect("Get is cb FAILED");
                             if is_chain_block || disable_virtual_chain_processing {
