@@ -48,8 +48,20 @@ jobs:
             -f docker/Dockerfile \
             --push .
 
+      - name: Build and push Docker image for prerelease
+        if: github.event_name == 'release' && github.event.release.prerelease == true
+        run: |
+          docker buildx build --pull \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg COMMIT_ID=${{ env.SHORT_SHA }} \
+            --build-arg VERSION=${{ github.ref_name }} \
+            -t supertypo/simply-kaspa-indexer:${{ env.SHORT_SHA }} \
+            -t supertypo/simply-kaspa-indexer:${{ github.ref_name }} \
+            -f docker/Dockerfile \
+            --push .
+
       - name: Build and push Docker image for release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && github.event.release.prerelease == false
         run: |
           docker buildx build --pull \
             --platform linux/amd64,linux/arm64 \
