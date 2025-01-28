@@ -39,7 +39,7 @@ pub async fn process_transactions(
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (5000f64 * batch_scale) as usize;
 
-    let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
+    let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressTransactionTable);
 
     let mut transactions = vec![];
     let mut block_tx = vec![];
