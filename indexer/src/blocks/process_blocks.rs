@@ -72,7 +72,8 @@ pub async fn process_blocks(
                 || (!block_hashes.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2)
             {
                 let start_commit_time = Instant::now();
-                debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
+                let blocks_len = blocks.len();
+                debug!("Committing {} blocks ({} parents)", blocks_len, blocks_parents.len());
                 let blocks_inserted = if !disable_blocks { insert_blocks(batch_scale, blocks, database.clone()).await } else { 0 };
                 let block_parents_inserted = if !disable_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
@@ -81,7 +82,7 @@ pub async fn process_blocks(
                 };
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
                 let bps = if !disable_blocks || !disable_block_relations {
-                    blocks.len() as f64 / commit_time as f64 * 1000f64
+                    blocks_len as f64 / commit_time as f64 * 1000f64
                 } else {
                     0f64
                 };
@@ -90,7 +91,6 @@ pub async fn process_blocks(
                     checkpoint = None; // Clear the checkpoint block until vcp has been started
                     let tas_deleted =
                         database.delete_transaction_acceptances(&block_hashes).await.expect("Delete transactions_acceptances FAILED");
-                    block_hashes = vec![];
                     if (disable_vcp_wait_for_sync || synced) && tas_deleted == 0 {
                         noop_delete_count += 1;
                     } else {
