@@ -89,7 +89,7 @@ pub fn map_transaction_outputs_address(transaction: &RpcTransaction) -> Vec<SqlA
             SqlAddressTransaction {
                 address: verbose_data.script_public_key_address.payload_to_string(),
                 transaction_id: tx_verbose_data.transaction_id.into(),
-                block_time: tx_verbose_data.block_time.to_i64().expect("Tx block_time is too large"),
+                block_time: tx_verbose_data.block_time.to_i64().unwrap(),
             }
         })
         .collect::<Vec<SqlAddressTransaction>>()

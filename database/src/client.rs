@@ -177,8 +177,8 @@ impl KaspaDbClient {
         query::insert::insert_address_transactions(address_transactions, &self.pool).await
     }
 
-    pub async fn insert_address_transactions_from_inputs(&self, transaction_ids: &[Hash]) -> Result<u64, Error> {
-        query::insert::insert_address_transactions_from_inputs(transaction_ids, &self.pool).await
+    pub async fn insert_address_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {
+        query::insert::insert_address_transactions_from_inputs(use_tx, transaction_ids, &self.pool).await
     }
 
     pub async fn insert_block_transactions(&self, block_transactions: &[BlockTransaction]) -> Result<u64, Error> {

@@ -144,16 +144,27 @@ pub async fn insert_address_transactions(address_transactions: &[AddressTransact
     Ok(query.execute(pool).await?.rows_affected())
 }
 
-pub async fn insert_address_transactions_from_inputs(transaction_ids: &[Hash], pool: &Pool<Postgres>) -> Result<u64, Error> {
-    let sql = "
-    INSERT INTO addresses_transactions (address, transaction_id, block_time)
+pub async fn insert_address_transactions_from_inputs(
+    use_tx: bool,
+    transaction_ids: &[Hash],
+    pool: &Pool<Postgres>,
+) -> Result<u64, Error> {
+    let sql = if use_tx {
+        "INSERT INTO addresses_transactions (address, transaction_id, block_time)
         SELECT o.script_public_key_address, i.transaction_id, t.block_time
             FROM transactions_inputs i
             JOIN transactions t ON t.transaction_id = i.transaction_id
             JOIN transactions_outputs o ON o.transaction_id = i.previous_outpoint_hash AND o.index = i.previous_outpoint_index
         WHERE i.transaction_id = ANY($1) AND t.transaction_id = ANY($1)
-        ON CONFLICT DO NOTHING";
-
+        ON CONFLICT DO NOTHING"
+    } else {
+        "INSERT INTO addresses_transactions (address, transaction_id, block_time)
+        SELECT o.script_public_key_address, i.transaction_id, i.block_time
+            FROM transactions_inputs i
+            JOIN transactions_outputs o ON o.transaction_id = i.previous_outpoint_hash AND o.index = i.previous_outpoint_index
+        WHERE i.transaction_id = ANY($1)
+        ON CONFLICT DO NOTHING"
+    };
     Ok(sqlx::query(sql).bind(transaction_ids).execute(pool).await?.rows_affected())
 }
 

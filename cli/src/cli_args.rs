@@ -92,4 +92,14 @@ impl CliArgs {
     pub fn is_disabled(&self, feature: CliDisable) -> bool {
         self.disable.as_ref().map_or(false, |disable| disable.contains(&feature))
     }
+
+    pub fn is_excluded(&self, field: CliField) -> bool {
+        if let Some(include_fields) = self.include_fields.clone() {
+            !include_fields.contains(&field)
+        } else if let Some(exclude_fields) = self.exclude_fields.clone() {
+            exclude_fields.contains(&field)
+        } else {
+            false
+        }
+    }
 }

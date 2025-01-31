@@ -4,7 +4,7 @@ use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::RpcTransaction;
 use log::{debug, info, trace};
 use moka::sync::Cache;
-use simply_kaspa_cli::cli_args::CliDisable;
+use simply_kaspa_cli::cli_args::{CliDisable, CliField};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::address_transaction::AddressTransaction;
 use simply_kaspa_database::models::block_transaction::BlockTransaction;
@@ -107,7 +107,9 @@ pub async fn process_transactions(
 
                 if !disable_address_transactions {
                     // ^Input address resolving can only happen after the transaction + inputs + outputs are committed
-                    rows_affected_tx_addresses += insert_input_tx_addr(batch_scale, transaction_ids, database.clone()).await;
+                    let use_tx_for_time = settings.cli_args.is_excluded(CliField::TxInBlockTime);
+                    rows_affected_tx_addresses +=
+                        insert_input_tx_addr(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await;
                 }
 
                 // ^All other transaction details needs to be committed before linking to blocks, to avoid incomplete checkpoints
@@ -179,15 +181,17 @@ async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, dat
     rows_affected
 }
 
-async fn insert_input_tx_addr(batch_scale: f64, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
+async fn insert_input_tx_addr(batch_scale: f64, use_tx: bool, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
     let batch_size = min((400f64 * batch_scale) as u16, 8000) as usize;
     let key = "input addresses_transactions";
     let start_time = Instant::now();
     debug!("Processing {} transactions for {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected +=
-            database.insert_address_transactions_from_inputs(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected += database
+            .insert_address_transactions_from_inputs(use_tx, batch_values)
+            .await
+            .unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
