@@ -18,7 +18,7 @@ overflow-checks = true
 panic = "abort"
 
 [workspace.package]
-rust-version = "1.82.0"
+rust-version = "1.83.0"
 authors = ["suprtypo@pm.me"]
 license-file = "LICENSE"
 edition = "2021" # Rust edition
@@ -28,22 +28,22 @@ simply-kaspa-cli = { path = "cli" }
 simply-kaspa-database = { path = "database" }
 simply-kaspa-mapping = { path = "mapping" }
 simply-kaspa-kaspad = { path = "kaspad" }
-kaspa-wrpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.15.2" }
-kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.15.2" }
-kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.15.2" }
-tokio = { version = "1.37.0", features = ["default", "signal"] }
-futures-util = { version = "0.3.29", default-features = false }
-sqlx = { version = "0.8.2", features = ["runtime-tokio", "postgres"] }
+kaspa-wrpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.16.0" }
+kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.16.0" }
+kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.16.0" }
+tokio = { version = "1.43.0", features = ["default", "signal"] }
+futures-util = { version = "0.3.31", default-features = false }
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "postgres"] }
 deadpool = { version = "0.12.1", features = ["managed", "rt_tokio_1"] }
-crossbeam-queue = "0.3.11"
-moka = { version = "0.12.7", features = ["sync"] }
-itertools = "0.13.0"
-chrono = { version = "0.4.38", features = ["std"] }
-futures = "0.3.30"
-bigdecimal = "0.4.3"
+crossbeam-queue = "0.3.12"
+moka = { version = "0.12.10", features = ["sync"] }
+itertools = "0.14.0"
+chrono = { version = "0.4.39", features = ["std"] }
+futures = "0.3.31"
+bigdecimal = "0.4.7"
 hex = "0.4.3"
-regex = "1.10.4"
+regex = "1.11.1"
 workflow-core = "0.18.0"
-env_logger = "0.11.3"
-log = "0.4.21"
-clap = { version = "4.5.4", features = ["cargo", "derive"] }
+env_logger = "0.11.6"
+log = "0.4.25"
+clap = { version = "4.5.27", features = ["cargo", "derive"] }
