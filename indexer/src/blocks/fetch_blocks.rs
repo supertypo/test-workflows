@@ -111,7 +111,6 @@ impl KaspaBlocksFetcher {
                     }
                     Err(e) => {
                         error!("Failed getting blocks with low_hash {}: {}", self.low_hash.to_string(), e);
-                        let _ = kaspad.disconnect().await;
                         sleep(Duration::from_secs(5)).await;
                     }
                 },

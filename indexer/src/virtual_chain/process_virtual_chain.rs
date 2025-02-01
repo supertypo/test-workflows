@@ -70,7 +70,6 @@ pub async fn process_virtual_chain(
                     }
                     Err(e) => {
                         error!("Failed getting virtual chain from start_hash {}: {}", start_hash.to_string(), e);
-                        let _ = kaspad.disconnect().await;
                         sleep(Duration::from_secs(5)).await;
                     }
                 }
