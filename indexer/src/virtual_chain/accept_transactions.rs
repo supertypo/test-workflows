@@ -25,7 +25,7 @@ pub async fn accept_transactions(
                 .accepted_transaction_ids
                 .iter()
                 .map(|t| TransactionAcceptance {
-                    transaction_id: t.to_owned().into(),
+                    transaction_id: Some(t.to_owned().into()),
                     block_hash: accepted_id.accepting_block_hash.into(),
                 })
                 .collect::<Vec<_>>(),

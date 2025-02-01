@@ -24,7 +24,7 @@ pub struct KaspaDbClient {
 }
 
 impl KaspaDbClient {
-    const SCHEMA_VERSION: u8 = 6;
+    const SCHEMA_VERSION: u8 = 7;
 
     pub async fn new(url: &str) -> Result<KaspaDbClient, Error> {
         Self::new_with_args(url, 10).await
@@ -54,58 +54,69 @@ impl KaspaDbClient {
                 let mut version = v.parse::<u8>().expect("Expected valid schema version");
                 if version < Self::SCHEMA_VERSION {
                     if version == 1 {
-                        let v1_v2_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v1_to_v2.sql"));
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v1_to_v2.sql"));
                         if upgrade_db {
-                            warn!("\n{v1_v2_ddl}\nUpgrading schema from v1 to v2, this will take a while ^");
-                            query::misc::execute_ddl(v1_v2_ddl, &self.pool).await?;
+                            warn!("\n{ddl}\nUpgrading schema from v1 to v2, this will take a while ^");
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 2;
                         } else {
-                            panic!("\n{v1_v2_ddl}\nFound outdated schema v1. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v1. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 2 {
-                        let v2_v3_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v2_to_v3.sql"));
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v2_to_v3.sql"));
                         if upgrade_db {
-                            warn!("\n{v2_v3_ddl}\nUpgrading schema from v2 to v3. ^");
-                            query::misc::execute_ddl(v2_v3_ddl, &self.pool).await?;
+                            warn!("\n{ddl}\nUpgrading schema from v2 to v3. ^");
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 3;
                         } else {
-                            panic!("\n{v2_v3_ddl}\nFound outdated schema v2. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v2. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 3 {
-                        let v3_v4_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v3_to_v4.sql"));
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v3_to_v4.sql"));
                         if upgrade_db {
-                            warn!("\n{v3_v4_ddl}\nUpgrading schema from v3 to v4. ^");
-                            query::misc::execute_ddl(v3_v4_ddl, &self.pool).await?;
+                            warn!("\n{ddl}\nUpgrading schema from v3 to v4. ^");
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 4;
                         } else {
-                            panic!("\n{v3_v4_ddl}\nFound outdated schema v3. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v3. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 4 {
-                        let v4_v5_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v4_to_v5.sql"));
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v4_to_v5.sql"));
                         if upgrade_db {
-                            warn!("\n{v4_v5_ddl}\nUpgrading schema from v4 to v5. ^");
-                            query::misc::execute_ddl(v4_v5_ddl, &self.pool).await?;
+                            warn!("\n{ddl}\nUpgrading schema from v4 to v5. ^");
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 5;
                         } else {
-                            panic!("\n{v4_v5_ddl}\nFound outdated schema v4. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v4. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 5 {
-                        let v5_v6_ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v5_to_v6.sql"));
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v5_to_v6.sql"));
                         if upgrade_db {
-                            warn!("\n{v5_v6_ddl}\nUpgrading schema from v5 to v6. ^ NB! There are some optional indexes, review them");
-                            query::misc::execute_ddl(v5_v6_ddl, &self.pool).await?;
+                            warn!("\n{ddl}\nUpgrading schema from v5 to v6. ^ NB! There are some optional indexes, review them");
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
                             version = 6;
                         } else {
-                            panic!("\n{v5_v6_ddl}\nFound outdated schema v5. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v5. Set flag '-u' to upgrade, or apply manually ^")
+                        }
+                    }
+                    if version == 6 {
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v6_to_v7.sql"));
+                        if upgrade_db {
+                            warn!("\n{ddl}\nUpgrading schema from v6 to v7. ^");
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
+                            info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
+                            version = 6;
+                        } else {
+                            panic!("\n{ddl}\nFound outdated schema v6. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     trace!("Schema version is v{version}")

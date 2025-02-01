@@ -57,7 +57,7 @@ CREATE INDEX ON transactions (block_time DESC);
 
 CREATE TABLE transactions_acceptances
 (
-    transaction_id BYTEA PRIMARY KEY,
+    transaction_id BYTEA UNIQUE,
     block_hash     BYTEA
 );
 CREATE INDEX ON transactions_acceptances (block_hash);
