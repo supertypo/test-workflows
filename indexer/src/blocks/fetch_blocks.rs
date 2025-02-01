@@ -10,8 +10,8 @@ use deadpool::managed::{Object, Pool};
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::api::rpc::RpcApi;
 use kaspa_rpc_core::{GetBlocksResponse, RpcBlock, RpcTransaction};
-use log::info;
 use log::{debug, trace, warn};
+use log::{error, info};
 use moka::sync::Cache;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use tokio::time::sleep;
@@ -106,12 +106,15 @@ impl KaspaBlocksFetcher {
                             sleep(Duration::from_secs(2)).await;
                         }
                     }
-                    Err(_) => {
-                        let _ = kaspad.disconnect().await;
+                    Err(e) => {
+                        error!("Failed getting blocks with low_hash {}: {}", self.low_hash.to_string(), e);
                         sleep(Duration::from_secs(5)).await;
                     }
                 },
-                Err(_) => sleep(Duration::from_secs(5)).await,
+                Err(e) => {
+                    error!("Failed getting kaspad connection from pool: {}", e);
+                    sleep(Duration::from_secs(5)).await
+                }
             }
         }
     }

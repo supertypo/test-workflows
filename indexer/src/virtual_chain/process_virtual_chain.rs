@@ -2,7 +2,7 @@ use crate::settings::Settings;
 use crate::virtual_chain::update_transactions::update_txs;
 use deadpool::managed::{Object, Pool};
 use kaspa_rpc_core::api::rpc::RpcApi;
-use log::{debug, info};
+use log::{debug, error, info};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,13 +54,16 @@ pub async fn process_virtual_chain(
                             synced = true;
                         }
                     }
-                    Err(_) => {
-                        let _ = kaspad.disconnect().await;
+                    Err(e) => {
+                        error!("Failed getting virtual chain from start_hash {}: {}", start_hash.to_string(), e);
                         sleep(Duration::from_secs(5)).await;
                     }
                 }
             }
-            Err(_) => sleep(Duration::from_secs(5)).await,
+            Err(e) => {
+                error!("Failed getting kaspad connection from pool: {}", e);
+                sleep(Duration::from_secs(5)).await
+            }
         }
         if synced {
             sleep(Duration::from_secs(2)).await;
