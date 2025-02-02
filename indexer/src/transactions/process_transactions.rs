@@ -40,6 +40,7 @@ pub async fn process_transactions(
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (5000f64 * batch_scale) as usize;
 
+    let disable_blocks_transactions = settings.cli_args.is_disabled(CliDisable::BlocksTransactionsTable);
     let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressTransactionTable);
 
     let mut transactions = vec![];
@@ -102,14 +103,21 @@ pub async fn process_transactions(
                 let tx_handle = task::spawn(insert_txs(batch_scale, transactions, database.clone()));
                 let tx_inputs_handle = task::spawn(insert_tx_inputs(batch_scale, tx_inputs, database.clone()));
                 let tx_outputs_handle = task::spawn(insert_tx_outputs(batch_scale, tx_outputs, database.clone()));
-                let mut rows_affected_tx_addresses = 0;
-                if !disable_address_transactions {
-                    let tx_output_addr_handle = task::spawn(insert_output_tx_addr(batch_scale, tx_addresses, database.clone()));
-                    rows_affected_tx_addresses += tx_output_addr_handle.await.unwrap()
-                }
+                let blocks_txs_handle = if !disable_blocks_transactions {
+                    task::spawn(insert_block_txs(batch_scale, block_tx, database.clone()))
+                } else {
+                    task::spawn(async { 0 })
+                };
+                let tx_output_addr_handle = if !disable_address_transactions {
+                    task::spawn(insert_output_tx_addr(batch_scale, tx_addresses, database.clone()))
+                } else {
+                    task::spawn(async { 0 })
+                };
                 let rows_affected_tx = tx_handle.await.unwrap();
                 let rows_affected_tx_inputs = tx_inputs_handle.await.unwrap();
                 let rows_affected_tx_outputs = tx_outputs_handle.await.unwrap();
+                let rows_affected_block_tx = blocks_txs_handle.await.unwrap();
+                let mut rows_affected_tx_addresses = tx_output_addr_handle.await.unwrap();
 
                 if !disable_address_transactions {
                     // ^Input address resolving can only happen after the transaction + inputs + outputs are committed
@@ -117,9 +125,6 @@ pub async fn process_transactions(
                     rows_affected_tx_addresses +=
                         insert_input_tx_addr(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await;
                 }
-
-                // ^All other transaction details needs to be committed before linking to blocks, to avoid incomplete checkpoints
-                let rows_affected_block_tx = insert_block_txs(batch_scale, block_tx, database.clone()).await;
 
                 for hash in checkpoint_hashes.into_iter() {
                     while checkpoint_queue.push((CheckpointOrigin::Transactions, hash.into())).is_err() {

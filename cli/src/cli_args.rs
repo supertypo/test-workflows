@@ -8,11 +8,13 @@ pub enum CliDisable {
     VirtualChainProcessing,
     /// Disables transaction processing, only block-related tables will be populated
     TransactionProcessing,
-    /// Disable populating the blocks table
+    /// Disables the blocks table
     BlocksTable,
-    /// Disable populating the block_parent table
+    /// Disables the block_parent table
     BlockRelationsTable,
-    /// Disable populating the addresses_transactions table
+    /// Disables the blocks_transactions table
+    BlocksTransactionsTable,
+    /// Disables the addresses_transactions table
     AddressTransactionTable,
     /// Start VCP as soon as the filler has passed the previous run. Use with care
     VcpWaitForSync,
