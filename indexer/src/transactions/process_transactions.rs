@@ -1,8 +1,10 @@
+use crate::checkpoint::CheckpointOrigin;
+use crate::settings::Settings;
 use bigdecimal::ToPrimitive;
 use crossbeam_queue::ArrayQueue;
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::RpcTransaction;
-use log::{debug, info, trace};
+use log::{debug, info, trace, warn};
 use moka::sync::Cache;
 use simply_kaspa_cli::cli_args::{CliDisable, CliField};
 use simply_kaspa_database::client::KaspaDbClient;
@@ -21,14 +23,13 @@ use std::time::{Duration, Instant};
 use tokio::task;
 use tokio::time::sleep;
 
-use crate::settings::Settings;
-
 type SubnetworkMap = HashMap<String, i32>;
 
 pub async fn process_transactions(
     settings: Settings,
     run: Arc<AtomicBool>,
     txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
+    checkpoint_queue: Arc<ArrayQueue<(CheckpointOrigin, SqlHash)>>,
     database: KaspaDbClient,
     mapper: KaspaDbMapper,
 ) {
@@ -46,6 +47,7 @@ pub async fn process_transactions(
     let mut tx_inputs = vec![];
     let mut tx_outputs = vec![];
     let mut tx_addresses = vec![];
+    let mut checkpoint_hashes = vec![];
     let mut last_block_time = 0;
     let mut last_commit_time = Instant::now();
 
@@ -58,6 +60,10 @@ pub async fn process_transactions(
 
     while run.load(Ordering::Relaxed) {
         if let Some(rpc_transactions) = txs_queue.pop() {
+            if let Some(verbose_data) = rpc_transactions.first().and_then(|r| r.verbose_data.as_ref()) {
+                // All transactions in the vec will have the same block hash, so it suffices to add one
+                checkpoint_hashes.push(verbose_data.block_hash);
+            }
             for rpc_transaction in rpc_transactions {
                 let subnetwork_id = rpc_transaction.subnetwork_id.to_string();
                 let subnetwork_key = match subnetwork_map.get(&subnetwork_id) {
@@ -115,6 +121,12 @@ pub async fn process_transactions(
                 // ^All other transaction details needs to be committed before linking to blocks, to avoid incomplete checkpoints
                 let rows_affected_block_tx = insert_block_txs(batch_scale, block_tx, database.clone()).await;
 
+                for hash in checkpoint_hashes.into_iter() {
+                    while checkpoint_queue.push((CheckpointOrigin::Transactions, hash.into())).is_err() {
+                        warn!("Checkpoint queue is full");
+                        sleep(Duration::from_secs(1)).await;
+                    }
+                }
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
                 let tps = transactions_len as f64 / commit_time as f64 * 1000f64;
                 info!(
@@ -134,6 +146,7 @@ pub async fn process_transactions(
                 tx_inputs = vec![];
                 tx_outputs = vec![];
                 tx_addresses = vec![];
+                checkpoint_hashes = vec![];
                 last_commit_time = Instant::now();
             }
         } else {

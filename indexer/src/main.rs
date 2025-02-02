@@ -10,6 +10,7 @@ use simply_kaspa_cli::cli_args::{CliArgs, CliDisable};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_indexer::blocks::fetch_blocks::KaspaBlocksFetcher;
 use simply_kaspa_indexer::blocks::process_blocks::process_blocks;
+use simply_kaspa_indexer::checkpoint::process_checkpoints;
 use simply_kaspa_indexer::settings::Settings;
 use simply_kaspa_indexer::signal::signal_handler::notify_on_signals;
 use simply_kaspa_indexer::transactions::process_transactions::process_transactions;
@@ -115,6 +116,7 @@ async fn start_processing(
     let base_buffer_txs = base_buffer_blocks * 20f64;
     let blocks_queue = Arc::new(ArrayQueue::new((base_buffer_blocks * cli_args.batch_scale) as usize));
     let txs_queue = Arc::new(ArrayQueue::new((base_buffer_txs * cli_args.batch_scale) as usize));
+    let checkpoint_queue = Arc::new(ArrayQueue::new(30000));
 
     let mapper = KaspaDbMapper::new(&cli_args.exclude_fields, &cli_args.include_fields);
 
@@ -131,16 +133,28 @@ async fn start_processing(
             run.clone(),
             start_vcp.clone(),
             blocks_queue.clone(),
+            checkpoint_queue.clone(),
             database.clone(),
             mapper.clone(),
         )),
-        task::spawn(process_transactions(settings.clone(), run.clone(), txs_queue.clone(), database.clone(), mapper.clone())),
+        task::spawn(process_checkpoints(settings.clone(), run.clone(), checkpoint_queue.clone(), database.clone())),
     ];
+    if !settings.cli_args.is_disabled(CliDisable::TransactionProcessing) {
+        tasks.push(task::spawn(process_transactions(
+            settings.clone(),
+            run.clone(),
+            txs_queue.clone(),
+            checkpoint_queue.clone(),
+            database.clone(),
+            mapper.clone(),
+        )))
+    }
     if !settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing) {
         tasks.push(task::spawn(process_virtual_chain(
             settings.clone(),
             run.clone(),
             start_vcp.clone(),
+            checkpoint_queue.clone(),
             kaspad_pool.clone(),
             database.clone(),
         )))
