@@ -200,7 +200,7 @@ async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, dat
 }
 
 async fn insert_input_tx_addr(batch_scale: f64, use_tx: bool, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((400f64 * batch_scale) as u16, 8000) as usize;
+    let batch_size = min((200f64 * batch_scale) as u16, 8000) as usize;
     let key = "input addresses_transactions";
     let start_time = Instant::now();
     debug!("Processing {} transactions for {}", values.len(), key);
