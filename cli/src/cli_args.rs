@@ -14,8 +14,14 @@ pub enum CliDisable {
     BlockRelationsTable,
     /// Disables the blocks_transactions table
     BlocksTransactionsTable,
+    /// Disables the transactions table
+    TransactionsTable,
+    /// Disables the transactions_inputs table
+    TransactionsInputsTable,
+    /// Disables the transactions_outputs table
+    TransactionsOutputsTable,
     /// Disables the addresses_transactions table
-    AddressTransactionTable,
+    AddressesTransactionsTable,
     /// Start VCP as soon as the filler has passed the previous run. Use with care
     VcpWaitForSync,
 }

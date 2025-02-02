@@ -40,8 +40,11 @@ pub async fn process_transactions(
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (5000f64 * batch_scale) as usize;
 
+    let disable_transactions = settings.cli_args.is_disabled(CliDisable::TransactionsTable);
+    let disable_transactions_inputs = settings.cli_args.is_disabled(CliDisable::TransactionsInputsTable);
+    let disable_transactions_outputs = settings.cli_args.is_disabled(CliDisable::TransactionsOutputsTable);
     let disable_blocks_transactions = settings.cli_args.is_disabled(CliDisable::BlocksTransactionsTable);
-    let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressTransactionTable);
+    let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressesTransactionsTable);
 
     let mut transactions = vec![];
     let mut block_tx = vec![];
@@ -100,9 +103,21 @@ pub async fn process_transactions(
                 let transactions_len = transactions.len();
                 let transaction_ids = transactions.iter().map(|t| t.transaction_id.clone()).collect();
 
-                let tx_handle = task::spawn(insert_txs(batch_scale, transactions, database.clone()));
-                let tx_inputs_handle = task::spawn(insert_tx_inputs(batch_scale, tx_inputs, database.clone()));
-                let tx_outputs_handle = task::spawn(insert_tx_outputs(batch_scale, tx_outputs, database.clone()));
+                let tx_handle = if !disable_transactions {
+                    task::spawn(insert_txs(batch_scale, transactions, database.clone()))
+                } else {
+                    task::spawn(async { 0 })
+                };
+                let tx_inputs_handle = if !disable_transactions_inputs {
+                    task::spawn(insert_tx_inputs(batch_scale, tx_inputs, database.clone()))
+                } else {
+                    task::spawn(async { 0 })
+                };
+                let tx_outputs_handle = if !disable_transactions_outputs {
+                    task::spawn(insert_tx_outputs(batch_scale, tx_outputs, database.clone()))
+                } else {
+                    task::spawn(async { 0 })
+                };
                 let blocks_txs_handle = if !disable_blocks_transactions {
                     task::spawn(insert_block_txs(batch_scale, block_tx, database.clone()))
                 } else {
