@@ -1,17 +1,19 @@
 use clap::{Parser, ValueEnum};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum, ToSchema, Serialize, Deserialize)]
 #[clap(rename_all = "snake_case")]
 pub enum CliDisable {
     None,
-    /// Disables the virtual chain processor
+    /// Disables the virtual chain processor / the transactions_acceptances table
     VirtualChainProcessing,
-    /// Disables transaction processing, only block-related tables will be populated
+    /// Disables transaction processing / all transaction related tables
     TransactionProcessing,
     /// Disables the blocks table
     BlocksTable,
     /// Disables the block_parent table
-    BlockRelationsTable,
+    BlockParentTable,
     /// Disables the blocks_transactions table
     BlocksTransactionsTable,
     /// Disables the transactions table
@@ -26,7 +28,7 @@ pub enum CliDisable {
     VcpWaitForSync,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum, ToSchema, Serialize, Deserialize)]
 #[clap(rename_all = "snake_case")]
 pub enum CliField {
     None,
@@ -54,7 +56,8 @@ pub enum CliField {
     TxOutBlockTime,
 }
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, ToSchema, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CliArgs {
     #[clap(short = 's', long, help = "The url to a kaspad instance, e.g 'ws://localhost:17110'. Leave empty to use the Kaspa PNN")]
     pub rpc_url: Option<String>,
@@ -62,6 +65,8 @@ pub struct CliArgs {
     pub network: String,
     #[clap(short, long, default_value = "postgres://postgres:postgres@localhost:5432/postgres", help = "PostgreSQL url")]
     pub database_url: String,
+    #[clap(long, default_value = "0.0.0.0:8500", help = "Socket address for web server")]
+    pub listen: String,
     #[clap(short, long, default_value = "info", help = "error, warn, info, debug, trace, off")]
     pub log_level: String,
     #[clap(long, help = "Disable colored output")]

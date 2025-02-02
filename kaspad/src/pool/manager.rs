@@ -51,7 +51,7 @@ pub async fn connect_client(network_id: NetworkId, rpc_url: Option<String>) -> R
         server_info.network_id.network_type,
         server_info.network_id.suffix.map(|s| format!("-{}", s)).unwrap_or_default()
     );
-    info!("Connected to Kaspad {} version: {}, network: {}", url, server_info.server_version, connected_network);
+    info!("Connected to Kaspad {}, version: {}, network: {}", url, server_info.server_version, connected_network);
 
     if network_id != server_info.network_id {
         panic!("Network mismatch, expected '{}', actual '{}'", network_id, connected_network);

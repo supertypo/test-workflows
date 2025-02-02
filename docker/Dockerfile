@@ -13,7 +13,8 @@ RUN apk --no-cache add \
   linux-headers \
   wasm-pack \
   openssl-dev \
-  postgresql-dev
+  postgresql-dev \
+  curl
 
 WORKDIR /work
 

@@ -10,19 +10,22 @@ use simply_kaspa_cli::cli_args::{CliArgs, CliDisable};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_indexer::blocks::fetch_blocks::KaspaBlocksFetcher;
 use simply_kaspa_indexer::blocks::process_blocks::process_blocks;
-use simply_kaspa_indexer::checkpoint::process_checkpoints;
+use simply_kaspa_indexer::checkpoint::{process_checkpoints, CheckpointBlock, CheckpointOrigin};
 use simply_kaspa_indexer::settings::Settings;
 use simply_kaspa_indexer::signal::signal_handler::notify_on_signals;
 use simply_kaspa_indexer::transactions::process_transactions::process_transactions;
 use simply_kaspa_indexer::vars::load_block_checkpoint;
 use simply_kaspa_indexer::virtual_chain::process_virtual_chain::process_virtual_chain;
+use simply_kaspa_indexer::web::model::metrics::Metrics;
+use simply_kaspa_indexer::web::web_server::WebServer;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use simply_kaspa_mapping::mapper::KaspaDbMapper;
 use std::env;
 use std::str::FromStr;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
 use tokio::task;
 
 #[tokio::main]
@@ -64,6 +67,9 @@ async fn start_processing(
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     database: KaspaDbClient,
 ) -> Result<(), ()> {
+    let run = Arc::new(AtomicBool::new(true));
+    task::spawn(notify_on_signals(run.clone()));
+
     let mut block_dag_info = None;
     while block_dag_info.is_none() {
         if let Ok(kaspad) = kaspad_pool.get().await {
@@ -73,6 +79,9 @@ async fn start_processing(
         }
         if block_dag_info.is_none() {
             tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+        if !run.load(Ordering::Relaxed) {
+            return Ok(());
         }
     }
     let block_dag_info = block_dag_info.unwrap();
@@ -108,9 +117,16 @@ async fn start_processing(
     } else if let Some(exclude_fields) = &cli_args.exclude_fields {
         info!("Exclude fields is set, the following (non-required) fields will be excluded: {:?}", exclude_fields);
     }
-
-    let run = Arc::new(AtomicBool::new(true));
-    task::spawn(notify_on_signals(run.clone()));
+    let checkpoint_block = match kaspad_pool.get().await.unwrap().get_block(checkpoint, false).await {
+        Ok(block) => Some(CheckpointBlock {
+            origin: CheckpointOrigin::Initial,
+            hash: block.header.hash.into(),
+            timestamp: block.header.timestamp,
+            daa_score: Some(block.header.daa_score),
+            blue_score: Some(block.header.blue_score),
+        }),
+        Err(_) => None,
+    };
 
     let base_buffer_blocks = 1000f64;
     let base_buffer_txs = base_buffer_blocks * 20f64;
@@ -123,26 +139,47 @@ async fn start_processing(
     let settings = Settings { cli_args: cli_args.clone(), net_bps, net_tps_max, checkpoint };
     let start_vcp = Arc::new(AtomicBool::new(false));
 
-    let mut block_fetcher =
-        KaspaBlocksFetcher::new(settings.clone(), run.clone(), kaspad_pool.clone(), blocks_queue.clone(), txs_queue.clone());
+    let mut metrics = Metrics::new();
+    let mut settings_clone = settings.clone();
+    settings_clone.cli_args.rpc_url = Some("**hidden**".to_string());
+    settings_clone.cli_args.database_url = "**hidden**".to_string();
+    metrics.settings = Some(settings_clone);
+    metrics.queues.blocks_capacity = blocks_queue.capacity() as u64;
+    metrics.queues.transactions_capacity = txs_queue.capacity() as u64;
+    metrics.checkpoint.origin = checkpoint_block.as_ref().map(|c| format!("{:?}", c.origin));
+    metrics.checkpoint.block = checkpoint_block.map(|c| c.into());
+    metrics.components.transaction_processor.enabled = !settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
+    metrics.components.virtual_chain_processor.enabled = !settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
+    let metrics = Arc::new(RwLock::new(metrics));
+
+    let mut block_fetcher = KaspaBlocksFetcher::new(
+        settings.clone(),
+        run.clone(),
+        metrics.clone(),
+        kaspad_pool.clone(),
+        blocks_queue.clone(),
+        txs_queue.clone(),
+    );
 
     let mut tasks = vec![
         task::spawn(async move { block_fetcher.start().await }),
         task::spawn(process_blocks(
             settings.clone(),
             run.clone(),
+            metrics.clone(),
             start_vcp.clone(),
             blocks_queue.clone(),
             checkpoint_queue.clone(),
             database.clone(),
             mapper.clone(),
         )),
-        task::spawn(process_checkpoints(settings.clone(), run.clone(), checkpoint_queue.clone(), database.clone())),
+        task::spawn(process_checkpoints(settings.clone(), run.clone(), metrics.clone(), checkpoint_queue.clone(), database.clone())),
     ];
     if !settings.cli_args.is_disabled(CliDisable::TransactionProcessing) {
         tasks.push(task::spawn(process_transactions(
             settings.clone(),
             run.clone(),
+            metrics.clone(),
             txs_queue.clone(),
             checkpoint_queue.clone(),
             database.clone(),
@@ -153,12 +190,16 @@ async fn start_processing(
         tasks.push(task::spawn(process_virtual_chain(
             settings.clone(),
             run.clone(),
+            metrics.clone(),
             start_vcp.clone(),
             checkpoint_queue.clone(),
             kaspad_pool.clone(),
             database.clone(),
         )))
     }
+    tasks.push(task::spawn(async move {
+        Arc::new(WebServer::new(run, cli_args.listen, metrics, kaspad_pool, database)).run().await.unwrap();
+    }));
     try_join_all(tasks).await.unwrap();
     Ok(())
 }
