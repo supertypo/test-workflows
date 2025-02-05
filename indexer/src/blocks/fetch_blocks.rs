@@ -4,17 +4,19 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::settings::Settings;
-use chrono::Utc;
+use crate::web::model::metrics::{Metrics, MetricsBlock};
+use chrono::{DateTime, Utc};
 use crossbeam_queue::ArrayQueue;
 use deadpool::managed::{Object, Pool};
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::api::rpc::RpcApi;
-use kaspa_rpc_core::{GetBlocksResponse, RpcBlock, RpcTransaction};
+use kaspa_rpc_core::{RpcBlock, RpcTransaction};
 use log::{debug, trace, warn};
 use log::{error, info};
 use moka::sync::Cache;
 use simply_kaspa_cli::cli_args::CliDisable;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
+use tokio::sync::RwLock;
 use tokio::time::sleep;
 
 #[derive(Debug)]
@@ -26,6 +28,7 @@ pub struct BlockData {
 pub struct KaspaBlocksFetcher {
     disable_transaction_processing: bool,
     run: Arc<AtomicBool>,
+    metrics: Arc<RwLock<Metrics>>,
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     blocks_queue: Arc<ArrayQueue<BlockData>>,
     txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
@@ -43,6 +46,7 @@ impl KaspaBlocksFetcher {
     pub fn new(
         settings: Settings,
         run: Arc<AtomicBool>,
+        metrics: Arc<RwLock<Metrics>>,
         kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
         blocks_queue: Arc<ArrayQueue<BlockData>>,
         txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
@@ -54,6 +58,7 @@ impl KaspaBlocksFetcher {
         KaspaBlocksFetcher {
             disable_transaction_processing: settings.cli_args.is_disabled(CliDisable::TransactionProcessing),
             run,
+            metrics,
             kaspad_pool,
             blocks_queue,
             txs_queue,
@@ -82,8 +87,10 @@ impl KaspaBlocksFetcher {
                     Ok(response) => {
                         debug!("Received {} blocks", response.blocks.len());
                         trace!("Block hashes: \n{:#?}", response.block_hashes);
+                        let blocks = response.blocks;
+                        let blocks_len = blocks.len();
                         if !self.synced
-                            && response.blocks.len() < 100
+                            && blocks_len < 100
                             && Instant::now().duration_since(self.last_sync_check) >= Self::SYNC_CHECK_INTERVAL
                         {
                             info!("Getting tip hashes from BlockDagInfo for sync check");
@@ -92,11 +99,21 @@ impl KaspaBlocksFetcher {
                                 self.last_sync_check = Instant::now();
                             }
                         }
-
-                        let blocks_len = response.blocks.len();
                         let mut txs_len = 0;
                         if blocks_len > 1 {
-                            txs_len = self.handle_blocks(start_time, response).await;
+                            let last_block = blocks.last().unwrap().clone();
+                            txs_len = self.handle_blocks(start_time, blocks).await;
+
+                            let mut metrics = self.metrics.write().await;
+                            metrics.queues.blocks = self.blocks_queue.len() as u64;
+                            metrics.queues.transactions = self.txs_queue.len() as u64;
+                            metrics.components.block_fetcher.last_block = Some(MetricsBlock {
+                                hash: last_block.verbose_data.unwrap().hash.to_string(),
+                                timestamp: last_block.header.timestamp,
+                                date_time: DateTime::from_timestamp_millis(last_block.header.timestamp as i64).unwrap(),
+                                daa_score: Some(last_block.header.daa_score),
+                                blue_score: Some(last_block.header.blue_score),
+                            });
                         }
                         let fetch_time = Instant::now().duration_since(last_fetch_time).as_millis() as f64 / 1000f64;
                         debug!(
@@ -122,11 +139,11 @@ impl KaspaBlocksFetcher {
         }
     }
 
-    async fn handle_blocks(&mut self, start_time: Instant, response: GetBlocksResponse) -> usize {
+    async fn handle_blocks(&mut self, start_time: Instant, blocks: Vec<RpcBlock>) -> usize {
         let mut txs_len = 0;
-        self.low_hash = response.blocks.last().unwrap().header.hash;
+        self.low_hash = blocks.last().unwrap().header.hash;
         let mut newest_block_timestamp = 0;
-        for b in response.blocks {
+        for b in blocks {
             if self.synced && b.header.timestamp > newest_block_timestamp {
                 newest_block_timestamp = b.header.timestamp;
             }

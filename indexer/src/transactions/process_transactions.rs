@@ -1,6 +1,6 @@
-use crate::checkpoint::CheckpointOrigin;
+use crate::checkpoint::{CheckpointBlock, CheckpointOrigin};
 use crate::settings::Settings;
-use bigdecimal::ToPrimitive;
+use crate::web::model::metrics::Metrics;
 use crossbeam_queue::ArrayQueue;
 use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::RpcTransaction;
@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 use tokio::task;
 use tokio::time::sleep;
 
@@ -28,8 +29,9 @@ type SubnetworkMap = HashMap<String, i32>;
 pub async fn process_transactions(
     settings: Settings,
     run: Arc<AtomicBool>,
+    metrics: Arc<RwLock<Metrics>>,
     txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
-    checkpoint_queue: Arc<ArrayQueue<(CheckpointOrigin, SqlHash)>>,
+    checkpoint_queue: Arc<ArrayQueue<CheckpointBlock>>,
     database: KaspaDbClient,
     mapper: KaspaDbMapper,
 ) {
@@ -51,8 +53,7 @@ pub async fn process_transactions(
     let mut tx_inputs = vec![];
     let mut tx_outputs = vec![];
     let mut tx_addresses = vec![];
-    let mut checkpoint_hashes = vec![];
-    let mut last_block_time = 0;
+    let mut checkpoint_blocks = vec![];
     let mut last_commit_time = Instant::now();
 
     let mut subnetwork_map = SubnetworkMap::new();
@@ -66,7 +67,13 @@ pub async fn process_transactions(
         if let Some(rpc_transactions) = txs_queue.pop() {
             if let Some(verbose_data) = rpc_transactions.first().and_then(|r| r.verbose_data.as_ref()) {
                 // All transactions in the vec will have the same block hash, so it suffices to add one
-                checkpoint_hashes.push(verbose_data.block_hash);
+                checkpoint_blocks.push(CheckpointBlock {
+                    origin: CheckpointOrigin::Transactions,
+                    hash: verbose_data.block_hash.into(),
+                    timestamp: verbose_data.block_time,
+                    daa_score: None,
+                    blue_score: None,
+                });
             }
             for rpc_transaction in rpc_transactions {
                 let subnetwork_id = rpc_transaction.subnetwork_id.to_string();
@@ -85,7 +92,6 @@ pub async fn process_transactions(
                     trace!("Known transaction_id {}, keeping block relation only", transaction_id.to_string());
                 } else {
                     let transaction = mapper.map_transaction(&rpc_transaction, subnetwork_key);
-                    last_block_time = rpc_transaction.verbose_data.as_ref().unwrap().block_time.to_i64().unwrap();
                     transactions.push(transaction);
                     tx_inputs.extend(mapper.map_transaction_inputs(&rpc_transaction));
                     tx_outputs.extend(mapper.map_transaction_outputs(&rpc_transaction));
@@ -140,9 +146,15 @@ pub async fn process_transactions(
                     rows_affected_tx_addresses +=
                         insert_input_tx_addr(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await;
                 }
+                let last_checkpoint = checkpoint_blocks.last().unwrap().clone();
+                let last_block_time = last_checkpoint.timestamp;
 
-                for hash in checkpoint_hashes.into_iter() {
-                    while checkpoint_queue.push((CheckpointOrigin::Transactions, hash.into())).is_err() {
+                let mut metrics = metrics.write().await;
+                metrics.components.transaction_processor.last_block = Some(last_checkpoint.into());
+                drop(metrics);
+
+                for checkpoint_block in checkpoint_blocks {
+                    while checkpoint_queue.push(checkpoint_block.clone()).is_err() {
                         warn!("Checkpoint queue is full");
                         sleep(Duration::from_secs(1)).await;
                     }
@@ -158,15 +170,14 @@ pub async fn process_transactions(
                     rows_affected_tx_inputs,
                     rows_affected_tx_outputs,
                     rows_affected_tx_addresses,
-                    chrono::DateTime::from_timestamp_millis(last_block_time / 1000 * 1000).unwrap()
+                    chrono::DateTime::from_timestamp_millis(last_block_time as i64 / 1000 * 1000).unwrap()
                 );
-
                 transactions = vec![];
                 block_tx = vec![];
                 tx_inputs = vec![];
                 tx_outputs = vec![];
                 tx_addresses = vec![];
-                checkpoint_hashes = vec![];
+                checkpoint_blocks = vec![];
                 last_commit_time = Instant::now();
             }
         } else {

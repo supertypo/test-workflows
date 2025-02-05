@@ -1,5 +1,6 @@
 use crate::settings::Settings;
 use crate::vars::save_checkpoint;
+use crate::web::model::metrics::Metrics;
 use crossbeam_queue::ArrayQueue;
 use log::{debug, error, info, warn};
 use simply_kaspa_cli::cli_args::CliDisable;
@@ -9,19 +10,31 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 use tokio::time::sleep;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CheckpointOrigin {
     Blocks,
     Transactions,
     Vcp,
+    Initial, // Only set at startup, not used for checkpoint processing
+}
+
+#[derive(Clone)]
+pub struct CheckpointBlock {
+    pub origin: CheckpointOrigin,
+    pub hash: SqlHash,
+    pub timestamp: u64,
+    pub daa_score: Option<u64>,
+    pub blue_score: Option<u64>,
 }
 
 pub async fn process_checkpoints(
     settings: Settings,
     run: Arc<AtomicBool>,
-    checkpoint_queue: Arc<ArrayQueue<(CheckpointOrigin, SqlHash)>>,
+    metrics: Arc<RwLock<Metrics>>,
+    checkpoint_queue: Arc<ArrayQueue<CheckpointBlock>>,
     database: KaspaDbClient,
 ) {
     let disable_virtual_chain_processing = settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
@@ -41,60 +54,67 @@ pub async fn process_checkpoints(
     let mut cp_ok_txs: bool = false;
 
     while run.load(Ordering::Relaxed) {
-        if let Some((origin, block_hash)) = checkpoint_queue.pop() {
-            match origin {
+        if let Some(checkpoint_block) = checkpoint_queue.pop() {
+            match checkpoint_block.origin {
                 CheckpointOrigin::Blocks => {
                     if disable_virtual_chain_processing {
                         if checkpoint_candidate.is_none()
                             && Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_SAVE_INTERVAL
                         {
-                            debug!("Selected block_checkpoint candidate {}", hex::encode(block_hash.as_bytes()));
-                            checkpoint_candidate = Some(block_hash.clone());
+                            debug!("Selected block_checkpoint candidate {}", hex::encode(checkpoint_block.hash.as_bytes()));
+                            checkpoint_candidate = Some(checkpoint_block);
                             checkpoint_last_warned = Instant::now();
                             cp_ok_blocks = true;
                         }
                     } else {
-                        blocks_processed.insert(block_hash);
+                        blocks_processed.insert(checkpoint_block.hash);
                     }
                 }
                 CheckpointOrigin::Transactions => {
-                    txs_processed.insert(block_hash);
+                    txs_processed.insert(checkpoint_block.hash);
                 }
                 CheckpointOrigin::Vcp => {
                     if checkpoint_candidate.is_none()
                         && Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_SAVE_INTERVAL
                     {
-                        debug!("Selected block_checkpoint candidate {}", hex::encode(block_hash.as_bytes()));
-                        checkpoint_candidate = Some(block_hash.clone());
+                        debug!("Selected block_checkpoint candidate {}", hex::encode(checkpoint_block.hash.as_bytes()));
+                        checkpoint_candidate = Some(checkpoint_block);
                         checkpoint_last_warned = Instant::now();
                     }
                 }
+                CheckpointOrigin::Initial => {}
             }
-            if let Some(checkpoint) = checkpoint_candidate.clone() {
-                if !cp_ok_blocks && blocks_processed.contains(&checkpoint) {
+            if let Some(checkpoint) = checkpoint_candidate {
+                let checkpoint_string = hex::encode(checkpoint.hash.as_bytes());
+                if !cp_ok_blocks && blocks_processed.contains(&checkpoint.hash) {
                     cp_ok_blocks = true;
                     blocks_processed = HashSet::new();
                 }
-                if !cp_ok_txs && (disable_transaction_processing || txs_processed.contains(&checkpoint)) {
+                if !cp_ok_txs && (disable_transaction_processing || txs_processed.contains(&checkpoint.hash)) {
                     cp_ok_txs = true;
                     txs_processed = HashSet::new();
                 }
                 if cp_ok_blocks && cp_ok_txs {
-                    let checkpoint_string = hex::encode(checkpoint.as_bytes());
                     info!("Saving block_checkpoint {}", checkpoint_string);
                     save_checkpoint(&checkpoint_string, &database).await.unwrap();
+                    let mut metrics = metrics.write().await;
+                    metrics.checkpoint.origin = Some(format!("{:?}", checkpoint.origin));
+                    metrics.checkpoint.block = Some(checkpoint.into());
                     checkpoint_last_saved = Instant::now();
                     checkpoint_candidate = None;
                 } else if Instant::now().duration_since(checkpoint_last_warned).as_secs() > CHECKPOINT_WARN_INTERVAL {
-                    warn!("Still unable to save block_checkpoint {}", hex::encode(checkpoint.as_bytes()));
+                    warn!("Still unable to save block_checkpoint {}", checkpoint_string);
                     checkpoint_last_warned = Instant::now();
+                    checkpoint_candidate = Some(checkpoint);
                 } else if Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_FAILED_TIMEOUT {
                     // Failsafe in the unlikely scenario that vcp is more than CHECKPOINT_SAVE_INTERVAL behind blocks/txs processing
-                    // or, in the case of vcp-disabled, that blocks is equally far behind tx processing.
+                    // or, in the case of vcp disabled, that blocks is equally far behind tx processing.
                     // Selecting a new candidate without clearing the processed hashmaps should allow it to eventually succeed,
                     // although it will be at the expense of increased memory use.
-                    error!("Failed to synchronize on block_checkpoint {}", hex::encode(checkpoint.as_bytes()));
+                    error!("Failed to synchronize on block_checkpoint {}", checkpoint_string);
                     checkpoint_candidate = None;
+                } else {
+                    checkpoint_candidate = Some(checkpoint);
                 }
             }
         } else {

@@ -1,0 +1,268 @@
+use crate::checkpoint::CheckpointBlock;
+use bigdecimal::ToPrimitive;
+use bytesize::ByteSize;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use simply_kaspa_database::models::query::database_details::DatabaseDetails;
+use simply_kaspa_database::models::query::table_details::TableDetails;
+use utoipa::ToSchema;
+use crate::settings::Settings;
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Metrics {
+    pub settings: Option<Settings>,
+    pub process: MetricsProcess,
+    pub queues: MetricsQueues,
+    pub checkpoint: MetricsCheckpoint,
+    pub components: MetricsComponent,
+    pub database: MetricsDb,
+}
+
+impl Metrics {
+    pub fn new() -> Self {
+        Self {
+            settings: None,
+            process: MetricsProcess::new(),
+            queues: MetricsQueues::new(),
+            checkpoint: MetricsCheckpoint::new(),
+            components: MetricsComponent::new(),
+            database: MetricsDb::new(),
+        }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsProcess {
+    #[schema(example = "5.1")]
+    pub cpu_used_percent: f32,
+    #[schema(example = "26284032")]
+    pub memory_used: u64,
+    #[schema(example = "26.3 MB")]
+    pub memory_used_pretty: Option<String>,
+    #[schema(example = "9177317376")]
+    pub memory_free: u64,
+    #[schema(example = "9.2 GB")]
+    pub memory_free_pretty: Option<String>,
+}
+
+impl MetricsProcess {
+    pub fn new() -> Self {
+        Self { cpu_used_percent: 0.0, memory_used: 0, memory_used_pretty: None, memory_free: 0, memory_free_pretty: None }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsQueues {
+    #[schema(example = "57")]
+    pub blocks: u64,
+    #[schema(example = "1000")]
+    pub blocks_capacity: u64,
+    #[schema(example = "225")]
+    pub transactions: u64,
+    #[schema(example = "20000")]
+    pub transactions_capacity: u64,
+}
+
+impl MetricsQueues {
+    pub fn new() -> Self {
+        Self { blocks: 0, blocks_capacity: 0, transactions: 0, transactions_capacity: 0 }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsCheckpoint {
+    #[schema(example = "Vcp")]
+    pub origin: Option<String>,
+    pub block: Option<MetricsBlock>,
+}
+
+impl MetricsCheckpoint {
+    pub fn new() -> Self {
+        Self { origin: None, block: None }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsComponent {
+    pub block_fetcher: MetricsComponentBlockFetcher,
+    pub block_processor: MetricsComponentBlockProcessor,
+    pub transaction_processor: MetricsComponentTransactionProcessor,
+    pub virtual_chain_processor: MetricsComponentVirtualChainProcessor,
+}
+
+impl MetricsComponent {
+    pub fn new() -> Self {
+        Self {
+            block_fetcher: MetricsComponentBlockFetcher::new(),
+            block_processor: MetricsComponentBlockProcessor::new(),
+            transaction_processor: MetricsComponentTransactionProcessor::new(),
+            virtual_chain_processor: MetricsComponentVirtualChainProcessor::new(),
+        }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsComponentBlockFetcher {
+    pub last_block: Option<MetricsBlock>,
+}
+
+impl MetricsComponentBlockFetcher {
+    pub fn new() -> Self {
+        Self { last_block: None }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsComponentBlockProcessor {
+    pub last_block: Option<MetricsBlock>,
+}
+
+impl MetricsComponentBlockProcessor {
+    pub fn new() -> Self {
+        Self { last_block: None }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsComponentTransactionProcessor {
+    pub enabled: bool,
+    pub last_block: Option<MetricsBlock>,
+}
+
+impl MetricsComponentTransactionProcessor {
+    pub fn new() -> Self {
+        Self { enabled: false, last_block: None }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsComponentVirtualChainProcessor {
+    pub enabled: bool,
+    pub last_block: Option<MetricsBlock>,
+}
+
+impl MetricsComponentVirtualChainProcessor {
+    pub fn new() -> Self {
+        Self { enabled: false, last_block: None }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsDb {
+    #[schema(example = "postgres")]
+    pub database_name: Option<String>,
+    #[schema(example = "public")]
+    pub schema_name: Option<String>,
+    #[schema(example = "1901425123")]
+    pub database_size: Option<u64>,
+    #[schema(example = "1.9 GB")]
+    pub database_size_pretty: Option<String>,
+    #[schema(example = "13")]
+    pub active_queries: Option<u64>,
+    #[schema(example = "0")]
+    pub blocked_queries: Option<u64>,
+    #[schema(example = "7")]
+    pub active_connections: Option<u64>,
+    #[schema(example = "100")]
+    pub max_connections: Option<u64>,
+    pub tables: Option<Vec<MetricsDbTable>>,
+}
+
+impl MetricsDb {
+    pub fn new() -> Self {
+        Self {
+            database_name: None,
+            schema_name: None,
+            database_size: None,
+            database_size_pretty: None,
+            active_queries: None,
+            blocked_queries: None,
+            active_connections: None,
+            max_connections: None,
+            tables: None,
+        }
+    }
+}
+
+impl From<DatabaseDetails> for MetricsDb {
+    fn from(database_details: DatabaseDetails) -> Self {
+        Self {
+            database_name: Some(database_details.database_name),
+            schema_name: Some(database_details.schema_name),
+            database_size: Some(database_details.database_size.to_u64().unwrap_or(0)),
+            database_size_pretty: Some(ByteSize(database_details.database_size.to_u64().unwrap_or(0)).to_string()),
+            active_queries: Some(database_details.active_queries.to_u64().unwrap_or(0)),
+            blocked_queries: Some(database_details.blocked_queries.to_u64().unwrap_or(0)),
+            active_connections: Some(database_details.active_connections.to_u64().unwrap_or(0)),
+            max_connections: Some(database_details.max_connections.to_u64().unwrap_or(0)),
+            tables: None,
+        }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsDbTable {
+    #[schema(example = "addresses_transactions")]
+    pub name: String,
+    #[schema(example = "394731520")]
+    pub total_size: u64,
+    #[schema(example = "394.7 MB")]
+    pub total_size_pretty: String,
+    #[schema(example = "229638144")]
+    pub indexes_size: u64,
+    #[schema(example = "229.6 MB")]
+    pub indexes_size_pretty: String,
+    #[schema(example = "1213732")]
+    pub approximate_row_count: u64,
+}
+
+impl From<TableDetails> for MetricsDbTable {
+    fn from(table_details: TableDetails) -> Self {
+        Self {
+            name: table_details.name,
+            total_size: table_details.total_size.to_u64().unwrap_or(0),
+            total_size_pretty: ByteSize(table_details.total_size.to_u64().unwrap_or(0)).to_string(),
+            indexes_size: table_details.indexes_size.to_u64().unwrap_or(0),
+            indexes_size_pretty: ByteSize(table_details.indexes_size.to_u64().unwrap_or(0)).to_string(),
+            approximate_row_count: table_details.approximate_row_count.to_u64().unwrap_or(0),
+        }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsBlock {
+    #[schema(example = "f47db1a79f707fc139bdbefc98b4859217a6922b42acb7b552d9021fea2e7800")]
+    pub hash: String,
+    #[schema(example = "1738706345528")]
+    pub timestamp: u64,
+    #[schema(example = "2025-02-04T21:59:05.528Z")]
+    pub date_time: DateTime<Utc>,
+    #[schema(example = "102414204")]
+    pub daa_score: Option<u64>,
+    #[schema(example = "100804248")]
+    pub blue_score: Option<u64>,
+}
+
+impl From<CheckpointBlock> for MetricsBlock {
+    fn from(checkpoint_block: CheckpointBlock) -> Self {
+        Self {
+            hash: checkpoint_block.hash.to_string(),
+            timestamp: checkpoint_block.timestamp,
+            date_time: DateTime::from_timestamp_millis(checkpoint_block.timestamp as i64).unwrap(),
+            daa_score: checkpoint_block.daa_score,
+            blue_score: checkpoint_block.blue_score,
+        }
+    }
+}

@@ -10,6 +10,8 @@ use crate::models::address_transaction::AddressTransaction;
 use crate::models::block::Block;
 use crate::models::block_parent::BlockParent;
 use crate::models::block_transaction::BlockTransaction;
+use crate::models::query::database_details::DatabaseDetails;
+use crate::models::query::table_details::TableDetails;
 use crate::models::subnetwork::Subnetwork;
 use crate::models::transaction::Transaction;
 use crate::models::transaction_acceptance::TransactionAcceptance;
@@ -142,6 +144,14 @@ impl KaspaDbClient {
 
     pub async fn drop_schema(&self) -> Result<(), Error> {
         query::misc::execute_ddl(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/down.sql")), &self.pool).await
+    }
+
+    pub async fn select_database_details(&self) -> Result<DatabaseDetails, Error> {
+        query::select::select_database_details(&self.pool).await
+    }
+
+    pub async fn select_all_table_details(&self) -> Result<Vec<TableDetails>, Error> {
+        query::select::select_all_table_details(&self.pool).await
     }
 
     pub async fn select_var(&self, key: &str) -> Result<String, Error> {

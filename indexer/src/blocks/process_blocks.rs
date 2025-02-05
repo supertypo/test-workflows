@@ -4,8 +4,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::blocks::fetch_blocks::BlockData;
-use crate::checkpoint::CheckpointOrigin;
+use crate::checkpoint::{CheckpointBlock, CheckpointOrigin};
 use crate::settings::Settings;
+use crate::web::model::metrics::Metrics;
 use chrono::DateTime;
 use crossbeam_queue::ArrayQueue;
 use log::{debug, info, warn};
@@ -15,14 +16,16 @@ use simply_kaspa_database::models::block::Block;
 use simply_kaspa_database::models::block_parent::BlockParent;
 use simply_kaspa_database::models::types::hash::Hash as SqlHash;
 use simply_kaspa_mapping::mapper::KaspaDbMapper;
+use tokio::sync::RwLock;
 use tokio::time::sleep;
 
 pub async fn process_blocks(
     settings: Settings,
     run: Arc<AtomicBool>,
+    metrics: Arc<RwLock<Metrics>>,
     start_vcp: Arc<AtomicBool>,
     rpc_blocks_queue: Arc<ArrayQueue<BlockData>>,
-    checkpoint_queue: Arc<ArrayQueue<(CheckpointOrigin, SqlHash)>>,
+    checkpoint_queue: Arc<ArrayQueue<CheckpointBlock>>,
     database: KaspaDbClient,
     mapper: KaspaDbMapper,
 ) {
@@ -32,53 +35,60 @@ pub async fn process_blocks(
     let disable_virtual_chain_processing = settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
     let disable_vcp_wait_for_sync = settings.cli_args.is_disabled(CliDisable::VcpWaitForSync);
     let disable_blocks = settings.cli_args.is_disabled(CliDisable::BlocksTable);
-    let disable_block_relations = settings.cli_args.is_disabled(CliDisable::BlockRelationsTable);
+    let disable_block_relations = settings.cli_args.is_disabled(CliDisable::BlockParentTable);
     let mut vcp_started = false;
     let mut blocks = vec![];
     let mut blocks_parents = vec![];
-    let mut block_hashes = vec![];
+    let mut checkpoint_blocks = vec![];
     let mut last_commit_time = Instant::now();
     let mut noop_delete_count = 0;
 
     while run.load(Ordering::Relaxed) {
         if let Some(block_data) = rpc_blocks_queue.pop() {
             let synced = block_data.synced;
-            let last_block_datetime = DateTime::from_timestamp_millis(block_data.block.header.timestamp as i64 / 1000 * 1000).unwrap();
             let block = mapper.map_block(&block_data.block);
             if !disable_block_relations {
                 blocks_parents.extend(mapper.map_block_parents(&block_data.block));
             }
-            block_hashes.push(block.hash.clone());
+            checkpoint_blocks.push(CheckpointBlock {
+                origin: CheckpointOrigin::Blocks,
+                hash: block_data.block.header.hash.into(),
+                timestamp: block_data.block.header.timestamp,
+                daa_score: Some(block_data.block.header.daa_score),
+                blue_score: Some(block_data.block.header.blue_score),
+            });
             if !disable_blocks {
                 blocks.push(block);
             }
 
-            if block_hashes.len() >= batch_size
-                || (!block_hashes.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2)
+            if checkpoint_blocks.len() >= batch_size
+                || (!checkpoint_blocks.is_empty() && Instant::now().duration_since(last_commit_time).as_secs() > 2)
             {
                 let start_commit_time = Instant::now();
-                let blocks_len = blocks.len();
-                debug!("Committing {} blocks ({} parents)", blocks_len, blocks_parents.len());
+                debug!("Committing {} blocks ({} parents)", blocks.len(), blocks_parents.len());
+                let last_checkpoint_block = checkpoint_blocks.last().unwrap().clone();
                 let blocks_inserted = if !disable_blocks { insert_blocks(batch_scale, blocks, database.clone()).await } else { 0 };
                 let block_parents_inserted = if !disable_block_relations {
                     insert_block_parents(batch_scale, blocks_parents, database.clone()).await
                 } else {
                     0
                 };
+                let last_block_datetime = DateTime::from_timestamp_millis(last_checkpoint_block.timestamp as i64).unwrap();
 
                 if !vcp_started && !disable_virtual_chain_processing {
-                    let tas_deleted = delete_transaction_acceptances(batch_scale, block_hashes.clone(), database.clone()).await;
+                    let tas_deleted = delete_transaction_acceptances(
+                        batch_scale,
+                        checkpoint_blocks.iter().map(|c| c.hash.clone()).collect(),
+                        database.clone(),
+                    )
+                    .await;
                     if (disable_vcp_wait_for_sync || synced) && tas_deleted == 0 {
                         noop_delete_count += 1;
                     } else {
                         noop_delete_count = 0;
                     }
                     let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                    let bps = if !disable_blocks || !disable_block_relations {
-                        blocks_len as f64 / commit_time as f64 * 1000f64
-                    } else {
-                        0f64
-                    };
+                    let bps = checkpoint_blocks.len() as f64 / commit_time as f64 * 1000f64;
                     info!(
                         "Committed {} new blocks in {}ms ({:.1} bps, {} bp) [clr {} ta]. Last block: {}",
                         blocks_inserted, commit_time, bps, block_parents_inserted, tas_deleted, last_block_datetime
@@ -91,25 +101,26 @@ pub async fn process_blocks(
                 } else {
                     if blocks_inserted > 0 || block_parents_inserted > 0 {
                         let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                        let bps = if !disable_blocks || !disable_block_relations {
-                            blocks_len as f64 / commit_time as f64 * 1000f64
-                        } else {
-                            0f64
-                        };
+                        let bps = checkpoint_blocks.len() as f64 / commit_time as f64 * 1000f64;
                         info!(
                             "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
                             blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
                         );
                     }
                 }
-                for hash in block_hashes {
-                    while checkpoint_queue.push((CheckpointOrigin::Blocks, hash.clone())).is_err() {
+
+                let mut metrics = metrics.write().await;
+                metrics.components.block_processor.last_block = Some(last_checkpoint_block.into());
+                drop(metrics);
+
+                for checkpoint_block in checkpoint_blocks {
+                    while checkpoint_queue.push(checkpoint_block.clone()).is_err() {
                         warn!("Checkpoint queue is full");
                         sleep(Duration::from_secs(1)).await;
                     }
                 }
                 blocks = vec![];
-                block_hashes = vec![];
+                checkpoint_blocks = vec![];
                 blocks_parents = vec![];
                 last_commit_time = Instant::now();
             }
