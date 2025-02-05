@@ -112,9 +112,7 @@ async fn start_processing(
     if let Some(disable) = &cli_args.disable {
         info!("Disable functionality is set, the following functionality will be disabled: {:?}", disable);
     }
-    if let Some(include_fields) = &cli_args.include_fields {
-        info!("Include fields is set, the following (non-required) fields will be included: {:?}", include_fields);
-    } else if let Some(exclude_fields) = &cli_args.exclude_fields {
+    if let Some(exclude_fields) = &cli_args.exclude_fields {
         info!("Exclude fields is set, the following (non-required) fields will be excluded: {:?}", exclude_fields);
     }
     let checkpoint_block = match kaspad_pool.get().await.unwrap().get_block(checkpoint, false).await {
@@ -134,7 +132,7 @@ async fn start_processing(
     let txs_queue = Arc::new(ArrayQueue::new((base_buffer_txs * cli_args.batch_scale) as usize));
     let checkpoint_queue = Arc::new(ArrayQueue::new(30000));
 
-    let mapper = KaspaDbMapper::new(&cli_args.exclude_fields, &cli_args.include_fields);
+    let mapper = KaspaDbMapper::new(cli_args.clone());
 
     let settings = Settings { cli_args: cli_args.clone(), net_bps, net_tps_max, checkpoint };
     let start_vcp = Arc::new(AtomicBool::new(false));

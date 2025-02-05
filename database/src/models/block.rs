@@ -9,7 +9,7 @@ pub struct Block {
     pub merge_set_reds_hashes: Option<Vec<Hash>>,
     pub selected_parent_hash: Option<Hash>,
     pub bits: Option<i64>,
-    pub blue_score: i64,
+    pub blue_score: Option<i64>,
     pub blue_work: Option<BlueWork>,
     pub daa_score: Option<i64>,
     pub hash_merkle_root: Option<Hash>,

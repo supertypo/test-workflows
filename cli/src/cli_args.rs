@@ -38,6 +38,8 @@ pub enum CliField {
     BlockSelectedParentHash,
     BlockBits,
     BlockBlueWork,
+    /// NB! Used for sorting blocks
+    BlockBlueScore,
     BlockDaaScore,
     BlockHashMerkleRoot,
     BlockNonce,
@@ -45,13 +47,22 @@ pub enum CliField {
     BlockTimestamp,
     BlockUtxoCommitment,
     BlockVersion,
+    /// NB! Used for identifying tx type (coinbase/regular)
+    TxSubnetworkId,
     TxHash,
     TxMass,
     TxPayload,
+    /// NB! Used for sorting transactions
     TxBlockTime,
+    /// NB! Used for identifying wallet address of sender
+    TxInPreviousOutpoint,
     TxInSignatureScript,
     TxInSigOpCount,
     TxInBlockTime,
+    TxOutAmount,
+    /// NB! Used for identifying wallet addresses
+    TxOutScriptPublicKey,
+    /// NB! Used for identifying wallet addresses
     TxOutScriptPublicKeyAddress,
     TxOutBlockTime,
 }
@@ -65,9 +76,9 @@ pub struct CliArgs {
     pub network: String,
     #[clap(short, long, default_value = "postgres://postgres:postgres@localhost:5432/postgres", help = "PostgreSQL url")]
     pub database_url: String,
-    #[clap(long, default_value = "0.0.0.0:8500", help = "Socket address for web server")]
+    #[clap(short, long, default_value = "0.0.0.0:8500", help = "Socket address for web server")]
     pub listen: String,
-    #[clap(short, long, default_value = "info", help = "error, warn, info, debug, trace, off")]
+    #[clap(long, default_value = "info", help = "error, warn, info, debug, trace, off")]
     pub log_level: String,
     #[clap(long, help = "Disable colored output")]
     pub log_no_color: bool,
@@ -85,20 +96,11 @@ pub struct CliArgs {
     pub disable: Option<Vec<CliDisable>>,
     #[clap(
         long,
-        help = "Exclude specific (non-required) fields.
-        If include_fields is specified this argument is ignored.",
+        help = "Exclude specific fields. If include_fields is specified this argument is ignored.",
         value_enum,
         use_value_delimiter = true
     )]
     pub exclude_fields: Option<Vec<CliField>>,
-    #[clap(
-        long,
-        help = "Only include specific (non-required) fields.
-        Be aware that the required fields can change, so take care when upgrading and specify every field you need.",
-        value_enum,
-        use_value_delimiter = true
-    )]
-    pub include_fields: Option<Vec<CliField>>,
 }
 
 impl CliArgs {
@@ -107,9 +109,7 @@ impl CliArgs {
     }
 
     pub fn is_excluded(&self, field: CliField) -> bool {
-        if let Some(include_fields) = self.include_fields.clone() {
-            !include_fields.contains(&field)
-        } else if let Some(exclude_fields) = self.exclude_fields.clone() {
+        if let Some(exclude_fields) = self.exclude_fields.clone() {
             exclude_fields.contains(&field)
         } else {
             false

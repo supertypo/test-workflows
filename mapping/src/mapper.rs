@@ -1,5 +1,5 @@
 use kaspa_rpc_core::{RpcBlock, RpcTransaction};
-use simply_kaspa_cli::cli_args::CliField;
+use simply_kaspa_cli::cli_args::{CliArgs, CliField};
 use simply_kaspa_database::models::address_transaction::AddressTransaction as SqlAddressTransaction;
 use simply_kaspa_database::models::block::Block as SqlBlock;
 use simply_kaspa_database::models::block_parent::BlockParent as SqlBlockParent;
@@ -19,6 +19,7 @@ pub struct KaspaDbMapper {
     block_selected_parent_hash: bool,
     block_bits: bool,
     block_blue_work: bool,
+    block_blue_score: bool,
     block_daa_score: bool,
     block_hash_merkle_root: bool,
     block_nonce: bool,
@@ -26,42 +27,51 @@ pub struct KaspaDbMapper {
     block_timestamp: bool,
     block_utxo_commitment: bool,
     block_version: bool,
+    tx_subnetwork_id: bool,
     tx_hash: bool,
     tx_mass: bool,
     tx_payload: bool,
     tx_block_time: bool,
+    tx_in_previous_outpoint: bool,
     tx_in_signature_script: bool,
     tx_in_sig_op_count: bool,
     tx_in_block_time: bool,
+    tx_out_amount: bool,
+    tx_out_script_public_key: bool,
     tx_out_script_public_key_address: bool,
     tx_out_block_time: bool,
 }
 
 impl KaspaDbMapper {
-    pub fn new(exclude_fields: &Option<Vec<CliField>>, include_fields: &Option<Vec<CliField>>) -> KaspaDbMapper {
+    pub fn new(cli_args: CliArgs) -> KaspaDbMapper {
         KaspaDbMapper {
-            block_accepted_id_merkle_root: include_field(exclude_fields, include_fields, CliField::BlockAcceptedIdMerkleRoot),
-            block_merge_set_blues_hashes: include_field(exclude_fields, include_fields, CliField::BlockMergeSetBluesHashes),
-            block_merge_set_reds_hashes: include_field(exclude_fields, include_fields, CliField::BlockMergeSetRedsHashes),
-            block_selected_parent_hash: include_field(exclude_fields, include_fields, CliField::BlockSelectedParentHash),
-            block_bits: include_field(exclude_fields, include_fields, CliField::BlockBits),
-            block_blue_work: include_field(exclude_fields, include_fields, CliField::BlockBlueWork),
-            block_daa_score: include_field(exclude_fields, include_fields, CliField::BlockDaaScore),
-            block_hash_merkle_root: include_field(exclude_fields, include_fields, CliField::BlockHashMerkleRoot),
-            block_nonce: include_field(exclude_fields, include_fields, CliField::BlockNonce),
-            block_pruning_point: include_field(exclude_fields, include_fields, CliField::BlockPruningPoint),
-            block_timestamp: include_field(exclude_fields, include_fields, CliField::BlockTimestamp),
-            block_utxo_commitment: include_field(exclude_fields, include_fields, CliField::BlockUtxoCommitment),
-            block_version: include_field(exclude_fields, include_fields, CliField::BlockVersion),
-            tx_hash: include_field(exclude_fields, include_fields, CliField::TxHash),
-            tx_mass: include_field(exclude_fields, include_fields, CliField::TxMass),
-            tx_payload: include_field(exclude_fields, include_fields, CliField::TxPayload),
-            tx_block_time: include_field(exclude_fields, include_fields, CliField::TxBlockTime),
-            tx_in_signature_script: include_field(exclude_fields, include_fields, CliField::TxInSignatureScript),
-            tx_in_sig_op_count: include_field(exclude_fields, include_fields, CliField::TxInSigOpCount),
-            tx_in_block_time: include_field(exclude_fields, include_fields, CliField::TxInBlockTime),
-            tx_out_script_public_key_address: include_field(exclude_fields, include_fields, CliField::TxOutScriptPublicKeyAddress),
-            tx_out_block_time: include_field(exclude_fields, include_fields, CliField::TxOutBlockTime),
+            block_accepted_id_merkle_root: !cli_args.is_excluded(CliField::BlockAcceptedIdMerkleRoot),
+            block_merge_set_blues_hashes: !cli_args.is_excluded(CliField::BlockMergeSetBluesHashes),
+            block_merge_set_reds_hashes: !cli_args.is_excluded(CliField::BlockMergeSetRedsHashes),
+            block_selected_parent_hash: !cli_args.is_excluded(CliField::BlockSelectedParentHash),
+            block_bits: !cli_args.is_excluded(CliField::BlockBits),
+            block_blue_work: !cli_args.is_excluded(CliField::BlockBlueWork),
+            block_blue_score: !cli_args.is_excluded(CliField::BlockBlueScore),
+            block_daa_score: !cli_args.is_excluded(CliField::BlockDaaScore),
+            block_hash_merkle_root: !cli_args.is_excluded(CliField::BlockHashMerkleRoot),
+            block_nonce: !cli_args.is_excluded(CliField::BlockNonce),
+            block_pruning_point: !cli_args.is_excluded(CliField::BlockPruningPoint),
+            block_timestamp: !cli_args.is_excluded(CliField::BlockTimestamp),
+            block_utxo_commitment: !cli_args.is_excluded(CliField::BlockUtxoCommitment),
+            block_version: !cli_args.is_excluded(CliField::BlockVersion),
+            tx_subnetwork_id: !cli_args.is_excluded(CliField::TxSubnetworkId),
+            tx_hash: !cli_args.is_excluded(CliField::TxHash),
+            tx_mass: !cli_args.is_excluded(CliField::TxMass),
+            tx_payload: !cli_args.is_excluded(CliField::TxPayload),
+            tx_block_time: !cli_args.is_excluded(CliField::TxBlockTime),
+            tx_in_previous_outpoint: !cli_args.is_excluded(CliField::TxInPreviousOutpoint),
+            tx_in_signature_script: !cli_args.is_excluded(CliField::TxInSignatureScript),
+            tx_in_sig_op_count: !cli_args.is_excluded(CliField::TxInSigOpCount),
+            tx_in_block_time: !cli_args.is_excluded(CliField::TxInBlockTime),
+            tx_out_amount: !cli_args.is_excluded(CliField::TxOutAmount),
+            tx_out_script_public_key: !cli_args.is_excluded(CliField::TxOutScriptPublicKey),
+            tx_out_script_public_key_address: !cli_args.is_excluded(CliField::TxOutScriptPublicKeyAddress),
+            tx_out_block_time: !cli_args.is_excluded(CliField::TxOutBlockTime),
         }
     }
 
@@ -74,6 +84,7 @@ impl KaspaDbMapper {
             self.block_selected_parent_hash,
             self.block_bits,
             self.block_blue_work,
+            self.block_blue_score,
             self.block_daa_score,
             self.block_hash_merkle_root,
             self.block_nonce,
@@ -97,7 +108,15 @@ impl KaspaDbMapper {
     }
 
     pub fn map_transaction(&self, transaction: &RpcTransaction, subnetwork_key: i32) -> SqlTransaction {
-        transactions::map_transaction(subnetwork_key, transaction, self.tx_hash, self.tx_mass, self.tx_payload, self.tx_block_time)
+        transactions::map_transaction(
+            subnetwork_key,
+            transaction,
+            self.tx_subnetwork_id,
+            self.tx_hash,
+            self.tx_mass,
+            self.tx_payload,
+            self.tx_block_time,
+        )
     }
 
     pub fn map_block_transaction(&self, transaction: &RpcTransaction) -> SqlBlockTransaction {
@@ -105,24 +124,26 @@ impl KaspaDbMapper {
     }
 
     pub fn map_transaction_inputs(&self, transaction: &RpcTransaction) -> Vec<SqlTransactionInput> {
-        transactions::map_transaction_inputs(transaction, self.tx_in_signature_script, self.tx_in_sig_op_count, self.tx_in_block_time)
+        transactions::map_transaction_inputs(
+            transaction,
+            self.tx_in_previous_outpoint,
+            self.tx_in_signature_script,
+            self.tx_in_sig_op_count,
+            self.tx_in_block_time,
+        )
     }
 
     pub fn map_transaction_outputs(&self, transaction: &RpcTransaction) -> Vec<SqlTransactionOutput> {
-        transactions::map_transaction_outputs(transaction, self.tx_out_script_public_key_address, self.tx_out_block_time)
+        transactions::map_transaction_outputs(
+            transaction,
+            self.tx_out_amount,
+            self.tx_out_script_public_key,
+            self.tx_out_script_public_key_address,
+            self.tx_out_block_time,
+        )
     }
 
     pub fn map_transaction_outputs_address(&self, transaction: &RpcTransaction) -> Vec<SqlAddressTransaction> {
         transactions::map_transaction_outputs_address(transaction)
-    }
-}
-
-pub fn include_field(exclude_fields: &Option<Vec<CliField>>, include_fields: &Option<Vec<CliField>>, field: CliField) -> bool {
-    if let Some(include_fields) = include_fields {
-        include_fields.contains(&field)
-    } else if let Some(exclude_fields) = exclude_fields {
-        !exclude_fields.contains(&field)
-    } else {
-        true
     }
 }

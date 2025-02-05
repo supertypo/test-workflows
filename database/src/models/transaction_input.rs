@@ -3,8 +3,8 @@ use crate::models::types::hash::Hash;
 pub struct TransactionInput {
     pub transaction_id: Hash,
     pub index: i16,
-    pub previous_outpoint_hash: Hash,
-    pub previous_outpoint_index: i16,
+    pub previous_outpoint_hash: Option<Hash>,
+    pub previous_outpoint_index: Option<i16>,
     pub signature_script: Option<Vec<u8>>,
     pub sig_op_count: Option<i16>,
     pub block_time: Option<i64>,
