@@ -75,12 +75,18 @@ source ~/.bashrc
 git clone <repository-url>
 ```
 
-### 5. Build workspace
+### 5. Optionally, switch to a release version
+```shell
+git checkout <version>
+```
+E.g. git checkout v1.0.1
+
+### 6. Build workspace
 ```shell
 cargo build
 ```
 
-### 6. Run indexer
+### 7. Run indexer
 ```shell
 cargo run -- -s ws://<kaspad_host>:17110 -d postgres://postgres:postgres@<postgres_host>:5432
 ```

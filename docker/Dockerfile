@@ -29,6 +29,7 @@ COPY "$REPO_DIR"/database/Cargo.toml ./database/
 COPY "$REPO_DIR"/mapping/Cargo.toml ./mapping/
 COPY "$REPO_DIR"/indexer/Cargo.toml ./indexer/
 RUN mkdir cli/src kaspad/src database/src mapping/src indexer/src && \
+    echo "fn main() {}" > cli/build.rs && \
     echo "pub fn placeholder() {}" > cli/src/lib.rs && \
     echo "pub fn placeholder() {}" > kaspad/src/lib.rs && \
     echo "pub fn placeholder() {}" > database/src/lib.rs && \
@@ -38,7 +39,7 @@ RUN mkdir cli/src kaspad/src database/src mapping/src indexer/src && \
     cargo build --release
 
 COPY "$REPO_DIR" .
-RUN find . -type f \( -name lib.rs -or -name main.rs \) -exec touch {} +
+RUN find . -type f \( -name build.rs -or -name lib.rs -or -name main.rs \) -exec touch {} +
 RUN cargo build --release
 
 
