@@ -85,6 +85,11 @@ cargo build
 cargo run -- -s ws://<kaspad_host>:17110 -d postgres://postgres:postgres@<postgres_host>:5432
 ```
 
+## API
+There is a simple api available at http://localhost:8500/api (by default), it currently provides the following endpoints:
+- health
+- metrics
+
 ## Help
 ```
 Usage: simply-kaspa-indexer [OPTIONS]
