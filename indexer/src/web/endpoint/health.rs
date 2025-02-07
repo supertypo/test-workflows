@@ -137,7 +137,7 @@ fn indexer_details(
     let daa_lag_seconds = block
         .and_then(|b| b.daa_score)
         .and_then(|component_daa| current_daa.map(|current_daa| current_daa.saturating_sub(component_daa)))
-        .map(|component_daa_lag| component_daa_lag * net_bps);
+        .map(|component_daa_lag| component_daa_lag / net_bps);
     let time_lag_seconds = block
         .map(|b| b.timestamp)
         .map(|component_timestamp| ((Utc::now().timestamp_millis() as u64).saturating_sub(component_timestamp)) / 1000);
