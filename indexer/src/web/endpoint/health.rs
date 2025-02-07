@@ -136,10 +136,11 @@ fn indexer_details(
 ) -> HealthIndexerDetails {
     let daa_lag_seconds = block
         .and_then(|b| b.daa_score)
-        .and_then(|component_daa| current_daa.map(|current_daa| current_daa - component_daa))
+        .and_then(|component_daa| current_daa.map(|current_daa| current_daa.saturating_sub(component_daa)))
         .map(|component_daa_lag| component_daa_lag * net_bps);
-    let time_lag_seconds =
-        block.map(|b| b.timestamp).map(|component_timestamp| (Utc::now().timestamp_millis() as u64 - component_timestamp) / 1000);
+    let time_lag_seconds = block
+        .map(|b| b.timestamp)
+        .map(|component_timestamp| ((Utc::now().timestamp_millis() as u64).saturating_sub(component_timestamp)) / 1000);
 
     let status = daa_lag_seconds
         .or(time_lag_seconds)

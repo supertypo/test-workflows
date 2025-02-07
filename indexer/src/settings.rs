@@ -1,7 +1,7 @@
 use kaspa_hashes::Hash as KaspaHash;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use simply_kaspa_cli::cli_args::CliArgs;
+use utoipa::ToSchema;
 
 #[derive(ToSchema, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -11,4 +11,3 @@ pub struct Settings {
     #[schema(value_type = String)]
     pub checkpoint: KaspaHash,
 }
-

@@ -1,4 +1,5 @@
 use crate::checkpoint::CheckpointBlock;
+use crate::settings::Settings;
 use bigdecimal::ToPrimitive;
 use bytesize::ByteSize;
 use chrono::{DateTime, Utc};
@@ -6,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use simply_kaspa_database::models::query::database_details::DatabaseDetails;
 use simply_kaspa_database::models::query::table_details::TableDetails;
 use utoipa::ToSchema;
-use crate::settings::Settings;
 
 #[derive(ToSchema, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
