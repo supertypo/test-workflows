@@ -70,7 +70,7 @@ fn get_free_memory(system: &mut RwLockWriteGuard<System>) -> u64 {
         if let Some(current) =
             fs::read_to_string("/sys/fs/cgroup/memory.current").ok().and_then(|current| current.trim().parse::<u64>().ok())
         {
-            return (max - current) / 1024 / 1024;
+            return max - current;
         }
     };
     system.refresh_memory();
