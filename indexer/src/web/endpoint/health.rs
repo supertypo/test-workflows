@@ -63,13 +63,13 @@ async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthInd
 
     let queue_utilization = percent_allocation(metrics.queues.blocks, metrics.queues.blocks_capacity);
     health_details.push(HealthIndexerDetails {
-        name: "queues.blocks".to_string(),
+        name: "queue.blocks".to_string(),
         status: if queue_utilization < 90 { HealthStatus::UP } else { HealthStatus::WARN },
         reason: format!("Utilization: {}%", queue_utilization),
     });
     let queue_utilization = percent_allocation(metrics.queues.transactions, metrics.queues.transactions_capacity);
     health_details.push(HealthIndexerDetails {
-        name: "queues.transactions".to_string(),
+        name: "queue.transactions".to_string(),
         status: if queue_utilization < 90 { HealthStatus::UP } else { HealthStatus::WARN },
         reason: format!("Utilization: {}%", queue_utilization),
     });
