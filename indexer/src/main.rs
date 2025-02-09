@@ -148,6 +148,7 @@ async fn start_processing(
     metrics.checkpoint.block = checkpoint_block.map(|c| c.into());
     metrics.components.transaction_processor.enabled = !settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
     metrics.components.virtual_chain_processor.enabled = !settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
+    metrics.components.virtual_chain_processor.only_blocks = settings.cli_args.is_disabled(CliDisable::TransactionAcceptance);
     let metrics = Arc::new(RwLock::new(metrics));
 
     let mut block_fetcher = KaspaBlocksFetcher::new(

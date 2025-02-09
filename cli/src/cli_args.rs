@@ -8,6 +8,8 @@ pub enum CliDisable {
     None,
     /// Disables the virtual chain processor / the transactions_acceptances table
     VirtualChainProcessing,
+    /// Disables transaction acceptance, marks chain blocks as long as VCP is not disabled
+    TransactionAcceptance,
     /// Disables transaction processing / all transaction related tables
     TransactionProcessing,
     /// Disables the blocks table

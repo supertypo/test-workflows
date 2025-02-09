@@ -27,7 +27,7 @@ pub async fn process_virtual_chain(
     database: KaspaDbClient,
 ) {
     let batch_scale = settings.cli_args.batch_scale;
-    let disable_transaction_processing = settings.cli_args.is_disabled(CliDisable::TransactionProcessing);
+    let disable_transaction_acceptance = settings.cli_args.is_disabled(CliDisable::TransactionAcceptance);
     let mut start_hash = settings.checkpoint;
 
     let start_time = Instant::now();
@@ -42,7 +42,7 @@ pub async fn process_virtual_chain(
         debug!("Getting virtual chain from start_hash {}", start_hash.to_string());
         match kaspad_pool.get().await {
             Ok(kaspad) => {
-                match kaspad.get_virtual_chain_from_block(start_hash, !disable_transaction_processing).await {
+                match kaspad.get_virtual_chain_from_block(start_hash, !disable_transaction_acceptance).await {
                     Ok(res) => {
                         let added_blocks_count = res.added_chain_block_hashes.len();
                         if added_blocks_count > 0 {
@@ -56,7 +56,7 @@ pub async fn process_virtual_chain(
                                 blue_score: Some(last_accepting_block.header.blue_score),
                             };
                             let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
-                            if !disable_transaction_processing {
+                            if !disable_transaction_acceptance {
                                 let rows_added = accept_transactions(batch_scale, &res.accepted_transaction_ids, &database).await;
                                 info!(
                                     "Committed {} accepted and {} rejected transactions. Last accepted: {}",

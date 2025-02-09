@@ -147,12 +147,13 @@ impl MetricsComponentTransactionProcessor {
 #[serde(rename_all = "camelCase")]
 pub struct MetricsComponentVirtualChainProcessor {
     pub enabled: bool,
+    pub only_blocks: bool,
     pub last_block: Option<MetricsBlock>,
 }
 
 impl MetricsComponentVirtualChainProcessor {
     pub fn new() -> Self {
-        Self { enabled: false, last_block: None }
+        Self { enabled: false, only_blocks: false, last_block: None }
     }
 }
 
