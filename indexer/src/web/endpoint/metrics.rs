@@ -11,9 +11,11 @@ use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use tokio::time::sleep;
 
+pub const PATH: &str = "/api/metrics";
+
 #[utoipa::path(
     method(get),
-    path = "/api/metrics",
+    path = PATH,
     tag = web_server::INFO_TAG,
     description = "Get metrics",
     responses(

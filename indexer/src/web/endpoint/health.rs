@@ -15,9 +15,11 @@ use std::time::Duration;
 use sysinfo::System;
 use tokio::sync::RwLock;
 
+pub const PATH: &str = "/api/health";
+
 #[utoipa::path(
     method(get),
-    path = "/api/health",
+    path = PATH,
     tag = web_server::INFO_TAG,
     description = "Get health details",
     responses(

@@ -197,7 +197,7 @@ async fn start_processing(
         )))
     }
     tasks.push(task::spawn(async move {
-        Arc::new(WebServer::new(run, cli_args.listen, metrics, kaspad_pool, database)).run().await.unwrap();
+        Arc::new(WebServer::new(run, settings, metrics, kaspad_pool, database)).run().await.unwrap();
     }));
     try_join_all(tasks).await.unwrap();
     Ok(())

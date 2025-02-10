@@ -79,8 +79,10 @@ pub struct CliArgs {
     pub network: String,
     #[clap(short, long, default_value = "postgres://postgres:postgres@localhost:5432/postgres", help = "PostgreSQL url")]
     pub database_url: String,
-    #[clap(short, long, default_value = "localhost:8500", help = "Socket address for web server")]
+    #[clap(short, long, default_value = "localhost:8500", help = "Web server socket address")]
     pub listen: String,
+    #[clap(long, default_value = "/", help = "Web server base path")]
+    pub base_path: String,
     #[clap(long, default_value = "info", help = "error, warn, info, debug, trace, off")]
     pub log_level: String,
     #[clap(long, help = "Disable colored output")]

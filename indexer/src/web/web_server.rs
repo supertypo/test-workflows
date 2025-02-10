@@ -1,12 +1,12 @@
+use crate::settings::Settings;
 use crate::web::endpoint;
-use crate::web::endpoint::health::get_health;
-use crate::web::endpoint::metrics::get_metrics;
+use crate::web::endpoint::{health, metrics};
 use crate::web::model::metrics::Metrics;
 use axum::body::{to_bytes, Body};
 use axum::http::{header, HeaderValue, Request};
 use axum::middleware::Next;
 use axum::response::Response;
-use axum::{middleware, routing::get, Extension};
+use axum::{middleware, routing::get, Extension, Router};
 use deadpool::managed::{Object, Pool};
 use log::{info, trace, Level};
 use simply_kaspa_database::client::KaspaDbClient;
@@ -16,10 +16,12 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use std::vec;
 use sysinfo::System;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tower_http::cors::{Any, CorsLayer};
+use utoipa::openapi;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::{Config, SwaggerUi};
@@ -30,7 +32,6 @@ pub const INFO_TAG: &str = "info";
 #[openapi(
     info(
         title = "Simply Kaspa Indexer REST API",
-        description = "",
         license(name = "LICENSE", url = "https://github.com/supertypo/simply-kaspa-indexer"),
     ),
     paths(
@@ -45,7 +46,7 @@ struct ApiDoc;
 
 pub struct WebServer {
     run: Arc<AtomicBool>,
-    listen: String,
+    settings: Settings,
     metrics: Arc<RwLock<Metrics>>,
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     database_client: KaspaDbClient,
@@ -55,18 +56,29 @@ pub struct WebServer {
 impl WebServer {
     pub fn new(
         run: Arc<AtomicBool>,
-        listen: String,
+        settings: Settings,
         metrics: Arc<RwLock<Metrics>>,
         kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
         database_client: KaspaDbClient,
     ) -> Self {
-        WebServer { run, listen, metrics, kaspad_pool, database_client, system: Arc::new(RwLock::new(System::new())) }
+        WebServer { run, settings, metrics, kaspad_pool, database_client, system: Arc::new(RwLock::new(System::new())) }
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), Error> {
-        let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-            .route("/api/health", get(get_health))
-            .route("/api/metrics", get(get_metrics))
+        let listen = &self.settings.cli_args.listen;
+        let base_path = &self.settings.cli_args.base_path.trim_end_matches("/");
+
+        let (api_router, api) = OpenApiRouter::with_openapi(set_server_path(base_path))
+            .route(&format!("{}{}", base_path, health::PATH), get(health::get_health))
+            .route(&format!("{}{}", base_path, metrics::PATH), get(metrics::get_metrics))
+            .split_for_parts();
+        let swagger_config = Config::default().use_base_layout().try_it_out_enabled(true).display_request_duration(true);
+        let swagger =
+            SwaggerUi::new(format!("{}/api", base_path)).url(format!("{}/api/openapi.json", base_path), api).config(swagger_config);
+
+        let app = Router::new()
+            .merge(api_router)
+            .merge(swagger)
             .layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
             .layer(middleware::from_fn(add_default_cache_control))
             .layer(middleware::from_fn(log_requests))
@@ -74,14 +86,10 @@ impl WebServer {
             .layer(Extension(self.kaspad_pool.clone()))
             .layer(Extension(self.database_client.clone()))
             .layer(Extension(self.metrics.clone()))
-            .layer(Extension(self.system.clone()))
-            .split_for_parts();
+            .layer(Extension(self.system.clone()));
 
-        let swagger_config = Config::default().use_base_layout().try_it_out_enabled(true).display_request_duration(true);
-        let app = router.merge(SwaggerUi::new("/api").url("/apidoc/openapi.json", api).config(swagger_config));
-
-        info!("Starting web server listener on {}", &self.listen);
-        let listener = tokio::net::TcpListener::bind(&self.listen).await.expect("Failed to open listener");
+        info!("Starting web server listener on {}, api path: {}/api", listen, base_path);
+        let listener = tokio::net::TcpListener::bind(listen).await.expect("Failed to open listener");
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
             .with_graceful_shutdown(async move {
                 while self.run.load(Ordering::Relaxed) {
@@ -131,4 +139,12 @@ async fn log_responses(req: Request<Body>, next: Next) -> Response {
         }
     }
     response
+}
+
+pub fn set_server_path(base_path: &str) -> openapi::OpenApi {
+    let mut openapi = ApiDoc::openapi();
+    if base_path.trim_end_matches("/") != "" {
+        openapi.servers = Some(vec![openapi::ServerBuilder::new().url(base_path).build()]);
+    }
+    openapi
 }
