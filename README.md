@@ -115,9 +115,14 @@ Options:
           [default: postgres://postgres:postgres@localhost:5432/postgres]
 
   -l, --listen <LISTEN>
-          Socket address for web server
+          Web server socket address
           
-          [default: 0.0.0.0:8500]
+          [default: localhost:8500]
+
+      --base-path <BASE_PATH>
+          Web server base path
+          
+          [default: /]
 
       --log-level <LOG_LEVEL>
           error, warn, info, debug, trace, off
@@ -152,6 +157,7 @@ Options:
           Possible values:
           - none
           - virtual_chain_processing:     Disables the virtual chain processor / the transactions_acceptances table
+          - transaction_acceptance:       Disables transaction acceptance, marks chain blocks as long as VCP is not disabled
           - transaction_processing:       Disables transaction processing / all transaction related tables
           - blocks_table:                 Disables the blocks table
           - block_parent_table:           Disables the block_parent table
