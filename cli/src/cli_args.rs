@@ -70,7 +70,7 @@ pub enum CliField {
 }
 
 #[derive(Parser, Clone, Debug, ToSchema, Serialize, Deserialize)]
-#[command(version = env!("VERGEN_GIT_DESCRIBE"))]
+#[command(name = "simply-kaspa-indexer", version = env!("VERGEN_GIT_DESCRIBE"))]
 #[serde(rename_all = "camelCase")]
 pub struct CliArgs {
     #[clap(short = 's', long, help = "The url to a kaspad instance, e.g 'ws://localhost:17110'. Leave empty to use the Kaspa PNN")]

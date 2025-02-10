@@ -33,9 +33,9 @@ async fn main() {
     println!();
     println!("**************************************************************");
     println!("******************** Simply Kaspa Indexer ********************");
-    println!("**************************************************************");
-    println!("https://hub.docker.com/r/supertypo/simply-kaspa-indexer");
-    println!();
+    println!("--------------------------------------------------------------");
+    println!("----- https://github.com/supertypo/simply-kaspa-indexer/ -----");
+    println!("--------------------------------------------------------------");
     let cli_args = CliArgs::parse();
 
     env::set_var("RUST_LOG", &cli_args.log_level);
