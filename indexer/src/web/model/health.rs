@@ -8,6 +8,8 @@ use utoipa::ToSchema;
 #[derive(ToSchema, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Health {
+    pub name: String,
+    pub version: String,
     pub status: HealthStatus,
     #[schema(example = "1738706345528")]
     pub last_updated: u64,

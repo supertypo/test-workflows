@@ -11,6 +11,8 @@ use utoipa::ToSchema;
 #[derive(ToSchema, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Metrics {
+    pub name: String,
+    pub version: String,
     pub settings: Option<Settings>,
     pub process: MetricsProcess,
     pub queues: MetricsQueues,
@@ -20,8 +22,10 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn new() -> Self {
+    pub fn new(name: String, version: String) -> Self {
         Self {
+            name,
+            version,
             settings: None,
             process: MetricsProcess::new(),
             queues: MetricsQueues::new(),

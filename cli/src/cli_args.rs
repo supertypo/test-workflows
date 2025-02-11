@@ -120,4 +120,8 @@ impl CliArgs {
             false
         }
     }
+
+    pub fn version(&self) -> String {
+        env!("VERGEN_GIT_DESCRIBE").to_string()
+    }
 }
