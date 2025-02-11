@@ -47,9 +47,9 @@ pub async fn update_metrics(metrics: Arc<RwLock<Metrics>>, system: Arc<RwLock<Sy
         let uptime_seconds = process.run_time();
         metrics.process.cpu_used_percent = (process.cpu_usage() * 10.0).round() / 10.0;
         metrics.process.memory_used = process.memory();
-        metrics.process.memory_used_pretty = Some(ByteSize(process.memory()).to_string());
+        metrics.process.memory_used_pretty = Some(ByteSize(metrics.process.memory_used).to_string());
         metrics.process.memory_free = get_free_memory(&mut system);
-        metrics.process.memory_free_pretty = Some(ByteSize(get_free_memory(&mut system)).to_string());
+        metrics.process.memory_free_pretty = Some(ByteSize(metrics.process.memory_free).to_string());
         metrics.process.uptime = uptime_seconds * 1000;
         metrics.process.uptime_pretty = Some(humantime::format_duration(Duration::from_secs(uptime_seconds)).to_string());
     }
