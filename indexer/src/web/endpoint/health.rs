@@ -1,5 +1,5 @@
 use crate::web::endpoint::metrics::update_metrics;
-use crate::web::model::health::{Health, HealthIndexer, HealthIndexerDetails, HealthKaspad, HealthStatus};
+use crate::web::model::health::{Health, HealthIndexer, HealthIndexerDetails, HealthIndexerInfo, HealthKaspad, HealthStatus};
 use crate::web::model::metrics::{Metrics, MetricsBlock};
 use crate::web::web_server;
 use axum::http::StatusCode;
@@ -41,8 +41,7 @@ pub async fn get_health(
         Err(e) => (HealthStatus::DOWN, e.to_string()).into(),
     };
     let metrics = update_metrics(metrics, system, database_client).await;
-    let name = metrics.name.clone();
-    let version = metrics.version.clone();
+
     let health_indexer = indexer_health(metrics, health_kaspad.virtual_daa_score).await;
 
     let mut status = health_indexer.status.clone();
@@ -50,20 +49,22 @@ pub async fn get_health(
         status = HealthStatus::DOWN;
     }
 
-    let health = Health {
-        name,
-        version,
-        status,
-        last_updated: Utc::now().timestamp_millis() as u64,
-        indexer: health_indexer,
-        kaspad: health_kaspad,
-    };
+    let health = Health { status, last_updated: Utc::now().timestamp_millis() as u64, indexer: health_indexer, kaspad: health_kaspad };
     let status_code = if health.status != HealthStatus::DOWN { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
     (status_code, Json(&health)).into_response()
 }
 
 async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthIndexer {
-    let mut health = HealthIndexer::new();
+    let mut health = HealthIndexer {
+        status: HealthStatus::UP,
+        info: HealthIndexerInfo {
+            name: metrics.name,
+            version: metrics.version,
+            commit_id: metrics.commit_id,
+            uptime: metrics.process.uptime_pretty,
+        },
+        details: None,
+    };
     let mut health_details = vec![];
 
     health_details.push(HealthIndexerDetails {

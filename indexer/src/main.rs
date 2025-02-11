@@ -136,7 +136,7 @@ async fn start_processing(
     let settings = Settings { cli_args: cli_args.clone(), net_bps, net_tps_max, checkpoint };
     let start_vcp = Arc::new(AtomicBool::new(false));
 
-    let mut metrics = Metrics::new(env!("CARGO_PKG_NAME").to_string(), cli_args.version());
+    let mut metrics = Metrics::new(env!("CARGO_PKG_NAME").to_string(), cli_args.version(), cli_args.commit_id());
     let mut settings_clone = settings.clone();
     settings_clone.cli_args.rpc_url = Some("**hidden**".to_string());
     settings_clone.cli_args.database_url = "**hidden**".to_string();

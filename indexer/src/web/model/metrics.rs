@@ -13,6 +13,7 @@ use utoipa::ToSchema;
 pub struct Metrics {
     pub name: String,
     pub version: String,
+    pub commit_id: String,
     pub settings: Option<Settings>,
     pub process: MetricsProcess,
     pub queues: MetricsQueues,
@@ -22,10 +23,11 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn new(name: String, version: String) -> Self {
+    pub fn new(name: String, version: String, commit_id: String) -> Self {
         Self {
             name,
             version,
+            commit_id,
             settings: None,
             process: MetricsProcess::new(),
             queues: MetricsQueues::new(),
@@ -49,11 +51,22 @@ pub struct MetricsProcess {
     pub memory_free: u64,
     #[schema(example = "9.2 GB")]
     pub memory_free_pretty: Option<String>,
+    pub uptime: u64,
+    #[schema(example = "43m 35s")]
+    pub uptime_pretty: Option<String>,
 }
 
 impl MetricsProcess {
     pub fn new() -> Self {
-        Self { cpu_used_percent: 0.0, memory_used: 0, memory_used_pretty: None, memory_free: 0, memory_free_pretty: None }
+        Self {
+            cpu_used_percent: 0.0,
+            memory_used: 0,
+            memory_used_pretty: None,
+            memory_free: 0,
+            memory_free_pretty: None,
+            uptime: 0,
+            uptime_pretty: None,
+        }
     }
 }
 

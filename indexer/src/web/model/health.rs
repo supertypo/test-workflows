@@ -8,8 +8,6 @@ use utoipa::ToSchema;
 #[derive(ToSchema, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Health {
-    pub name: String,
-    pub version: String,
     pub status: HealthStatus,
     #[schema(example = "1738706345528")]
     pub last_updated: u64,
@@ -29,7 +27,18 @@ pub enum HealthStatus {
 #[serde(rename_all = "camelCase")]
 pub struct HealthIndexer {
     pub status: HealthStatus,
+    pub info: HealthIndexerInfo,
     pub details: Option<Vec<HealthIndexerDetails>>,
+}
+
+#[skip_serializing_none]
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthIndexerInfo {
+    pub name: String,
+    pub version: String,
+    pub commit_id: String,
+    pub uptime: Option<String>,
 }
 
 #[skip_serializing_none]
@@ -39,12 +48,6 @@ pub struct HealthIndexerDetails {
     pub name: String,
     pub status: HealthStatus,
     pub reason: String,
-}
-
-impl HealthIndexer {
-    pub fn new() -> Self {
-        Self { status: HealthStatus::UP, details: None }
-    }
 }
 
 #[skip_serializing_none]
