@@ -126,10 +126,9 @@ async fn start_processing(
         Err(_) => None,
     };
 
-    let base_buffer_blocks = 1000f64;
-    let base_buffer_txs = base_buffer_blocks * 20f64;
-    let blocks_queue = Arc::new(ArrayQueue::new((base_buffer_blocks * cli_args.batch_scale) as usize));
-    let txs_queue = Arc::new(ArrayQueue::new((base_buffer_txs * cli_args.batch_scale) as usize));
+    let queue_capacity = (cli_args.batch_scale * 1000f64) as usize;
+    let blocks_queue = Arc::new(ArrayQueue::new(queue_capacity));
+    let txs_queue = Arc::new(ArrayQueue::new(queue_capacity));
     let checkpoint_queue = Arc::new(ArrayQueue::new(30000));
 
     let mapper = KaspaDbMapper::new(cli_args.clone());

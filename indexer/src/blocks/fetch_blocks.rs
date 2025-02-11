@@ -186,7 +186,7 @@ impl KaspaBlocksFetcher {
                 warn!("RPC transactions queue is full");
                 last_transactions_warn = Instant::now();
             }
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(100)).await;
         }
     }
 
@@ -197,7 +197,7 @@ impl KaspaBlocksFetcher {
                 warn!("RPC blocks queue is full");
                 last_blocks_warn = Instant::now();
             }
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(100)).await;
         }
     }
 
