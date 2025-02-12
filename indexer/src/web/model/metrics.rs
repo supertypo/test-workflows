@@ -56,6 +56,12 @@ pub struct MetricsProcess {
     pub uptime_pretty: Option<String>,
 }
 
+impl Default for MetricsProcess {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricsProcess {
     pub fn new() -> Self {
         Self {
@@ -83,6 +89,12 @@ pub struct MetricsQueues {
     pub transactions_capacity: u64,
 }
 
+impl Default for MetricsQueues {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricsQueues {
     pub fn new() -> Self {
         Self { blocks: 0, blocks_capacity: 0, transactions: 0, transactions_capacity: 0 }
@@ -95,6 +107,12 @@ pub struct MetricsCheckpoint {
     #[schema(example = "Vcp")]
     pub origin: Option<String>,
     pub block: Option<MetricsBlock>,
+}
+
+impl Default for MetricsCheckpoint {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetricsCheckpoint {
@@ -110,6 +128,12 @@ pub struct MetricsComponent {
     pub block_processor: MetricsComponentBlockProcessor,
     pub transaction_processor: MetricsComponentTransactionProcessor,
     pub virtual_chain_processor: MetricsComponentVirtualChainProcessor,
+}
+
+impl Default for MetricsComponent {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetricsComponent {
@@ -129,6 +153,12 @@ pub struct MetricsComponentBlockFetcher {
     pub last_block: Option<MetricsBlock>,
 }
 
+impl Default for MetricsComponentBlockFetcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricsComponentBlockFetcher {
     pub fn new() -> Self {
         Self { last_block: None }
@@ -139,6 +169,12 @@ impl MetricsComponentBlockFetcher {
 #[serde(rename_all = "camelCase")]
 pub struct MetricsComponentBlockProcessor {
     pub last_block: Option<MetricsBlock>,
+}
+
+impl Default for MetricsComponentBlockProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetricsComponentBlockProcessor {
@@ -154,6 +190,12 @@ pub struct MetricsComponentTransactionProcessor {
     pub last_block: Option<MetricsBlock>,
 }
 
+impl Default for MetricsComponentTransactionProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricsComponentTransactionProcessor {
     pub fn new() -> Self {
         Self { enabled: false, last_block: None }
@@ -166,6 +208,12 @@ pub struct MetricsComponentVirtualChainProcessor {
     pub enabled: bool,
     pub only_blocks: bool,
     pub last_block: Option<MetricsBlock>,
+}
+
+impl Default for MetricsComponentVirtualChainProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetricsComponentVirtualChainProcessor {
@@ -194,6 +242,12 @@ pub struct MetricsDb {
     #[schema(example = "100")]
     pub max_connections: Option<u64>,
     pub tables: Option<Vec<MetricsDbTable>>,
+}
+
+impl Default for MetricsDb {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetricsDb {

@@ -170,12 +170,9 @@ fn indexer_details(
     HealthIndexerDetails {
         name: component.to_string(),
         status,
-        reason: format!(
-            "{}",
-            daa_lag_seconds
+        reason: daa_lag_seconds
                 .map(|lag| format!("{} behind", humantime::format_duration(Duration::from_secs(lag))))
                 .or(time_lag_seconds.map(|lag| format!("{} behind", humantime::format_duration(Duration::from_secs(lag)))))
-                .unwrap_or("No data".to_string()),
-        ),
+                .unwrap_or("No data".to_string()).to_string(),
     }
 }

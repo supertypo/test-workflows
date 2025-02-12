@@ -98,15 +98,13 @@ pub async fn process_blocks(
                         start_vcp.store(true, Ordering::Relaxed);
                         vcp_started = true;
                     }
-                } else {
-                    if blocks_inserted > 0 || block_parents_inserted > 0 {
-                        let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
-                        let bps = checkpoint_blocks.len() as f64 / commit_time as f64 * 1000f64;
-                        info!(
-                            "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
-                            blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
-                        );
-                    }
+                } else if blocks_inserted > 0 || block_parents_inserted > 0 {
+                    let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
+                    let bps = checkpoint_blocks.len() as f64 / commit_time as f64 * 1000f64;
+                    info!(
+                        "Committed {} new blocks in {}ms ({:.1} bps, {} bp). Last block: {}",
+                        blocks_inserted, commit_time, bps, block_parents_inserted, last_block_datetime
+                    );
                 }
 
                 let mut metrics = metrics.write().await;
