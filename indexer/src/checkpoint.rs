@@ -112,6 +112,7 @@ pub async fn process_checkpoints(
                     // Selecting a new candidate without clearing the processed hashmaps should allow it to eventually succeed,
                     // although it will be at the expense of increased memory use.
                     error!("Failed to synchronize on block_checkpoint {}", checkpoint_string);
+                    checkpoint_last_saved = Instant::now(); // Need to reset this to avoid a loop
                     checkpoint_candidate = None;
                 } else {
                     checkpoint_candidate = Some(checkpoint);
