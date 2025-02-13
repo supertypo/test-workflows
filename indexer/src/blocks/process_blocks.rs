@@ -54,8 +54,8 @@ pub async fn process_blocks(
                 origin: CheckpointOrigin::Blocks,
                 hash: block_data.block.header.hash.into(),
                 timestamp: block_data.block.header.timestamp,
-                daa_score: Some(block_data.block.header.daa_score),
-                blue_score: Some(block_data.block.header.blue_score),
+                daa_score: block_data.block.header.daa_score,
+                blue_score: block_data.block.header.blue_score,
             });
             if !disable_blocks {
                 blocks.push(block);

@@ -26,8 +26,8 @@ pub struct CheckpointBlock {
     pub origin: CheckpointOrigin,
     pub hash: SqlHash,
     pub timestamp: u64,
-    pub daa_score: Option<u64>,
-    pub blue_score: Option<u64>,
+    pub daa_score: u64,
+    pub blue_score: u64,
 }
 
 pub async fn process_checkpoints(

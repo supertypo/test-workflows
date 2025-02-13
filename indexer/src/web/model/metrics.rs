@@ -322,9 +322,9 @@ pub struct MetricsBlock {
     #[schema(example = "2025-02-04T21:59:05.528Z")]
     pub date_time: DateTime<Utc>,
     #[schema(example = "102414204")]
-    pub daa_score: Option<u64>,
+    pub daa_score: u64,
     #[schema(example = "100804248")]
-    pub blue_score: Option<u64>,
+    pub blue_score: u64,
 }
 
 impl From<CheckpointBlock> for MetricsBlock {

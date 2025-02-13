@@ -52,8 +52,8 @@ pub async fn process_virtual_chain(
                                 origin: CheckpointOrigin::Vcp,
                                 hash: last_accepting_block.header.hash.into(),
                                 timestamp: last_accepting_block.header.timestamp,
-                                daa_score: Some(last_accepting_block.header.daa_score),
-                                blue_score: Some(last_accepting_block.header.blue_score),
+                                daa_score: last_accepting_block.header.daa_score,
+                                blue_score: last_accepting_block.header.blue_score,
                             };
                             let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
                             if !disable_transaction_acceptance {

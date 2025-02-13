@@ -147,7 +147,7 @@ fn indexer_details(
     block: Option<&MetricsBlock>,
 ) -> HealthIndexerDetails {
     let daa_lag_seconds = block
-        .and_then(|b| b.daa_score)
+        .map(|b| b.daa_score)
         .and_then(|component_daa| current_daa.map(|current_daa| current_daa.saturating_sub(component_daa)))
         .map(|component_daa_lag| component_daa_lag / net_bps);
     let time_lag_seconds = block

@@ -1,9 +1,9 @@
+use crate::blocks::fetch_blocks::TransactionData;
 use crate::checkpoint::{CheckpointBlock, CheckpointOrigin};
 use crate::settings::Settings;
 use crate::web::model::metrics::Metrics;
 use crossbeam_queue::ArrayQueue;
 use kaspa_hashes::Hash as KaspaHash;
-use kaspa_rpc_core::RpcTransaction;
 use log::{debug, info, trace, warn};
 use moka::sync::Cache;
 use simply_kaspa_cli::cli_args::{CliDisable, CliField};
@@ -30,7 +30,7 @@ pub async fn process_transactions(
     settings: Settings,
     run: Arc<AtomicBool>,
     metrics: Arc<RwLock<Metrics>>,
-    txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
+    txs_queue: Arc<ArrayQueue<TransactionData>>,
     checkpoint_queue: Arc<ArrayQueue<CheckpointBlock>>,
     database: KaspaDbClient,
     mapper: KaspaDbMapper,
@@ -64,18 +64,15 @@ pub async fn process_transactions(
     info!("Loaded {} known subnetworks", subnetwork_map.len());
 
     while run.load(Ordering::Relaxed) {
-        if let Some(rpc_transactions) = txs_queue.pop() {
-            if let Some(verbose_data) = rpc_transactions.first().and_then(|r| r.verbose_data.as_ref()) {
-                // All transactions in the vec will have the same block hash, so it suffices to add one
-                checkpoint_blocks.push(CheckpointBlock {
-                    origin: CheckpointOrigin::Transactions,
-                    hash: verbose_data.block_hash.into(),
-                    timestamp: verbose_data.block_time,
-                    daa_score: None,
-                    blue_score: None,
-                });
-            }
-            for rpc_transaction in rpc_transactions {
+        if let Some(transaction_data) = txs_queue.pop() {
+            checkpoint_blocks.push(CheckpointBlock {
+                origin: CheckpointOrigin::Transactions,
+                hash: transaction_data.block_hash.into(),
+                timestamp: transaction_data.block_timestamp,
+                daa_score: transaction_data.block_daa_score,
+                blue_score: transaction_data.block_blue_score,
+            });
+            for rpc_transaction in transaction_data.transactions {
                 let subnetwork_id = rpc_transaction.subnetwork_id.to_string();
                 let subnetwork_key = match subnetwork_map.get(&subnetwork_id) {
                     Some(&subnetwork_key) => subnetwork_key,
@@ -86,8 +83,7 @@ pub async fn process_transactions(
                         subnetwork_key
                     }
                 };
-                let transaction_id =
-                    rpc_transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing").transaction_id;
+                let transaction_id = rpc_transaction.verbose_data.as_ref().unwrap().transaction_id;
                 if tx_id_cache.contains_key(&transaction_id) {
                     trace!("Known transaction_id {}, keeping block relation only", transaction_id.to_string());
                 } else {

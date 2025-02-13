@@ -25,13 +25,22 @@ pub struct BlockData {
     pub synced: bool,
 }
 
+#[derive(Debug)]
+pub struct TransactionData {
+    pub transactions: Vec<RpcTransaction>,
+    pub block_hash: KaspaHash,
+    pub block_timestamp: u64,
+    pub block_daa_score: u64,
+    pub block_blue_score: u64,
+}
+
 pub struct KaspaBlocksFetcher {
     disable_transaction_processing: bool,
     run: Arc<AtomicBool>,
     metrics: Arc<RwLock<Metrics>>,
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     blocks_queue: Arc<ArrayQueue<BlockData>>,
-    txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
+    txs_queue: Arc<ArrayQueue<TransactionData>>,
     low_hash: KaspaHash,
     last_sync_check: Instant,
     synced: bool,
@@ -49,7 +58,7 @@ impl KaspaBlocksFetcher {
         metrics: Arc<RwLock<Metrics>>,
         kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
         blocks_queue: Arc<ArrayQueue<BlockData>>,
-        txs_queue: Arc<ArrayQueue<Vec<RpcTransaction>>>,
+        txs_queue: Arc<ArrayQueue<TransactionData>>,
     ) -> KaspaBlocksFetcher {
         let ttl = settings.cli_args.cache_ttl;
         let cache_size = settings.net_bps as u64 * ttl * 2;
@@ -111,8 +120,8 @@ impl KaspaBlocksFetcher {
                                 hash: last_block.verbose_data.unwrap().hash.to_string(),
                                 timestamp: last_block.header.timestamp,
                                 date_time: DateTime::from_timestamp_millis(last_block.header.timestamp as i64).unwrap(),
-                                daa_score: Some(last_block.header.daa_score),
-                                blue_score: Some(last_block.header.blue_score),
+                                daa_score: last_block.header.daa_score,
+                                blue_score: last_block.header.blue_score,
                             });
                         }
                         let fetch_time = Instant::now().duration_since(last_fetch_time).as_millis() as f64 / 1000f64;
@@ -163,42 +172,39 @@ impl KaspaBlocksFetcher {
                 trace!("Ignoring known block hash {}", block_hash.to_string());
                 continue;
             }
-            self.blocks_queue_space().await;
-            self.txs_queue_space().await;
-            let block_data = BlockData {
+            let mut transaction_data = TransactionData {
+                transactions: b.transactions,
+                block_hash: b.header.hash,
+                block_timestamp: b.header.timestamp,
+                block_daa_score: b.header.daa_score,
+                block_blue_score: b.header.blue_score,
+            };
+            let mut block_data = BlockData {
                 block: RpcBlock { header: b.header, transactions: vec![], verbose_data: b.verbose_data },
                 synced: self.synced,
             };
-            self.blocks_queue.push(block_data).expect("Failed to enqueue block data");
-            if !self.disable_transaction_processing {
-                self.txs_queue.push(b.transactions).expect("Failed to enqueue transactions");
+            while self.run.load(Ordering::Relaxed) {
+                match self.blocks_queue.push(block_data) {
+                    Ok(_) => break,
+                    Err(v) => {
+                        block_data = v;
+                        sleep(Duration::from_millis(100)).await;
+                    }
+                }
+            }
+            while self.run.load(Ordering::Relaxed) {
+                match self.txs_queue.push(transaction_data) {
+                    Ok(_) => break,
+                    Err(v) => {
+                        transaction_data = v;
+                        sleep(Duration::from_millis(100)).await;
+                    }
+                }
             }
             self.block_cache.insert(block_hash, ());
         }
         self.lag_count = self.check_lag(self.synced, self.lag_count, newest_block_timestamp);
         txs_len
-    }
-
-    async fn txs_queue_space(&self) {
-        let mut last_transactions_warn = Instant::now();
-        while self.txs_queue.is_full() && self.run.load(Ordering::Relaxed) {
-            if Instant::now().duration_since(last_transactions_warn).as_secs() >= 30 {
-                warn!("RPC transactions queue is full");
-                last_transactions_warn = Instant::now();
-            }
-            sleep(Duration::from_millis(100)).await;
-        }
-    }
-
-    async fn blocks_queue_space(&self) {
-        let mut last_blocks_warn = Instant::now();
-        while self.blocks_queue.is_full() && self.run.load(Ordering::Relaxed) {
-            if Instant::now().duration_since(last_blocks_warn).as_secs() >= 30 {
-                warn!("RPC blocks queue is full");
-                last_blocks_warn = Instant::now();
-            }
-            sleep(Duration::from_millis(100)).await;
-        }
     }
 
     fn check_lag(&self, synced: bool, lag_count: i32, newest_block_timestamp: u64) -> i32 {

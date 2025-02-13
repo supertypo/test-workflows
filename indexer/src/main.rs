@@ -120,8 +120,8 @@ async fn start_processing(
             origin: CheckpointOrigin::Initial,
             hash: block.header.hash.into(),
             timestamp: block.header.timestamp,
-            daa_score: Some(block.header.daa_score),
-            blue_score: Some(block.header.blue_score),
+            daa_score: block.header.daa_score,
+            blue_score: block.header.blue_score,
         }),
         Err(_) => None,
     };
