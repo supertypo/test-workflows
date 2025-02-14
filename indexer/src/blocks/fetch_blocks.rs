@@ -150,14 +150,14 @@ impl KaspaBlocksFetcher {
 
     async fn handle_blocks(&mut self, start_time: Instant, blocks: Vec<RpcBlock>) -> usize {
         let mut txs_len = 0;
-        self.low_hash = blocks.last().unwrap().header.hash;
         let mut newest_block_timestamp = 0;
+        let mut block_hash = self.low_hash;
         for b in blocks {
             if self.synced && b.header.timestamp > newest_block_timestamp {
                 newest_block_timestamp = b.header.timestamp;
             }
             txs_len += b.transactions.len();
-            let block_hash = b.header.hash;
+            block_hash = b.header.hash;
             if !self.synced && self.tip_hashes.contains(&block_hash) {
                 let time_to_sync = Instant::now().duration_since(start_time);
                 info!(
@@ -168,7 +168,7 @@ impl KaspaBlocksFetcher {
                 );
                 self.synced = true;
             }
-            if self.block_cache.contains_key(&block_hash) {
+            if block_hash == self.low_hash || self.block_cache.contains_key(&block_hash) {
                 trace!("Ignoring known block hash {}", block_hash.to_string());
                 continue;
             }
@@ -203,6 +203,7 @@ impl KaspaBlocksFetcher {
             }
             self.block_cache.insert(block_hash, ());
         }
+        self.low_hash = block_hash;
         self.lag_count = self.check_lag(self.synced, self.lag_count, newest_block_timestamp);
         txs_len
     }
