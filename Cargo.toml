@@ -39,7 +39,6 @@ crossbeam-queue = "0.3.12"
 moka = { version = "0.12.10", features = ["sync"] }
 itertools = "0.14.0"
 chrono = { version = "0.4.39", features = ["std", "serde"] }
-futures = "0.3.31"
 bigdecimal = "0.4.7"
 hex = "0.4.3"
 regex = "1.11.1"

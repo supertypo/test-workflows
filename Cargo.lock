@@ -3722,7 +3722,6 @@ name = "simply-kaspa-kaspad"
 version = "0.0.0"
 dependencies = [
  "deadpool",
- "futures",
  "kaspa-rpc-core",
  "kaspa-wrpc-client",
  "log",
