@@ -46,6 +46,7 @@ async fn main() {
     if cli_args.batch_scale < 0.1 || cli_args.batch_scale > 10.0 {
         panic!("Invalid batch-scale");
     }
+    info!("{} {}", env!("CARGO_PKG_NAME"), cli_args.version());
 
     let network_id = NetworkId::from_str(&cli_args.network).unwrap();
     let kaspad_manager = KaspadManager { network_id, rpc_url: cli_args.rpc_url.clone() };
