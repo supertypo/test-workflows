@@ -171,8 +171,9 @@ fn indexer_details(
         name: component.to_string(),
         status,
         reason: daa_lag_seconds
-                .map(|lag| format!("{} behind", humantime::format_duration(Duration::from_secs(lag))))
-                .or(time_lag_seconds.map(|lag| format!("{} behind", humantime::format_duration(Duration::from_secs(lag)))))
-                .unwrap_or("No data".to_string()).to_string(),
+            .map(|lag| format!("{} behind", humantime::format_duration(Duration::from_secs(lag))))
+            .or(time_lag_seconds.map(|lag| format!("{} behind", humantime::format_duration(Duration::from_secs(lag)))))
+            .unwrap_or("No data".to_string())
+            .to_string(),
     }
 }
