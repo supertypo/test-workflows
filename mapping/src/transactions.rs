@@ -3,6 +3,7 @@ use kaspa_rpc_core::RpcTransaction;
 
 use simply_kaspa_database::models::address_transaction::AddressTransaction as SqlAddressTransaction;
 use simply_kaspa_database::models::block_transaction::BlockTransaction as SqlBlockTransaction;
+use simply_kaspa_database::models::script_transaction::ScriptTransaction as SqlScriptTransaction;
 use simply_kaspa_database::models::transaction::Transaction as SqlTransaction;
 use simply_kaspa_database::models::transaction_input::TransactionInput as SqlTransactionInput;
 use simply_kaspa_database::models::transaction_output::TransactionOutput as SqlTransactionOutput;
@@ -97,4 +98,17 @@ pub fn map_transaction_outputs_address(transaction: &RpcTransaction) -> Vec<SqlA
             }
         })
         .collect::<Vec<SqlAddressTransaction>>()
+}
+
+pub fn map_transaction_outputs_script(transaction: &RpcTransaction) -> Vec<SqlScriptTransaction> {
+    let tx_verbose_data = transaction.verbose_data.as_ref().expect("Transaction verbose_data is missing");
+    transaction
+        .outputs
+        .iter()
+        .map(|output| SqlScriptTransaction {
+            script_public_key: output.script_public_key.script().to_vec(),
+            transaction_id: tx_verbose_data.transaction_id.into(),
+            block_time: tx_verbose_data.block_time.to_i64().unwrap(),
+        })
+        .collect::<Vec<SqlScriptTransaction>>()
 }

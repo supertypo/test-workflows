@@ -3,6 +3,7 @@ pub mod block;
 pub mod block_parent;
 pub mod block_transaction;
 pub mod query;
+pub mod script_transaction;
 pub mod subnetwork;
 pub mod transaction;
 pub mod transaction_acceptance;
