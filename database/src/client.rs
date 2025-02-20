@@ -116,7 +116,7 @@ impl KaspaDbClient {
                             warn!("\n{ddl}\nUpgrading schema from v6 to v7. ^");
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 6;
+                            version = 7;
                         } else {
                             panic!("\n{ddl}\nFound outdated schema v6. Set flag '-u' to upgrade, or apply manually ^")
                         }
