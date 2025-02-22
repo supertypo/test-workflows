@@ -24,7 +24,7 @@ pub enum CliDisable {
     TransactionsInputsTable,
     /// Disables the transactions_outputs table
     TransactionsOutputsTable,
-    /// Disables the addresses_transactions table
+    /// Disables the addresses_transactions (or scripts_transactions) table
     AddressesTransactionsTable,
     /// Start VCP as soon as the filler has passed the previous run. Use with care
     VcpWaitForSync,
@@ -40,7 +40,7 @@ pub enum CliField {
     BlockSelectedParentHash,
     BlockBits,
     BlockBlueWork,
-    /// NB! Used for sorting blocks
+    /// Used for sorting blocks
     BlockBlueScore,
     BlockDaaScore,
     BlockHashMerkleRoot,
@@ -49,22 +49,23 @@ pub enum CliField {
     BlockTimestamp,
     BlockUtxoCommitment,
     BlockVersion,
-    /// NB! Used for identifying tx type (coinbase/regular)
+    /// Used for identifying tx type (coinbase/regular)
     TxSubnetworkId,
     TxHash,
     TxMass,
     TxPayload,
-    /// NB! Used for sorting transactions
+    /// Used for sorting transactions
     TxBlockTime,
-    /// NB! Used for identifying wallet address of sender
+    /// Used for identifying wallet address of sender
     TxInPreviousOutpoint,
     TxInSignatureScript,
     TxInSigOpCount,
+    /// Excluding this will increase load for populating adress-/scripts_transactions
     TxInBlockTime,
     TxOutAmount,
-    /// NB! Used for identifying wallet addresses
+    /// Excluding both this and script_public_key_address will disable adress-/scripts_transactions
     TxOutScriptPublicKey,
-    /// NB! Used for identifying wallet addresses
+    /// Excluding this, scripts_transactions to be populated instead of adresses_transactions
     TxOutScriptPublicKeyAddress,
     TxOutBlockTime,
 }

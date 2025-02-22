@@ -12,6 +12,7 @@ use crate::models::block_parent::BlockParent;
 use crate::models::block_transaction::BlockTransaction;
 use crate::models::query::database_details::DatabaseDetails;
 use crate::models::query::table_details::TableDetails;
+use crate::models::script_transaction::ScriptTransaction;
 use crate::models::subnetwork::Subnetwork;
 use crate::models::transaction::Transaction;
 use crate::models::transaction_acceptance::TransactionAcceptance;
@@ -26,7 +27,7 @@ pub struct KaspaDbClient {
 }
 
 impl KaspaDbClient {
-    const SCHEMA_VERSION: u8 = 7;
+    const SCHEMA_VERSION: u8 = 8;
 
     pub async fn new(url: &str) -> Result<KaspaDbClient, Error> {
         Self::new_with_args(url, 10).await
@@ -58,67 +59,78 @@ impl KaspaDbClient {
                     if version == 1 {
                         let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v1_to_v2.sql"));
                         if upgrade_db {
-                            warn!("\n{ddl}\nUpgrading schema from v1 to v2, this will take a while ^");
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 2;
+                            version += 1;
                         } else {
-                            panic!("\n{ddl}\nFound outdated schema v1. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 2 {
                         let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v2_to_v3.sql"));
                         if upgrade_db {
-                            warn!("\n{ddl}\nUpgrading schema from v2 to v3. ^");
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 3;
+                            version += 1;
                         } else {
-                            panic!("\n{ddl}\nFound outdated schema v2. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 3 {
                         let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v3_to_v4.sql"));
                         if upgrade_db {
-                            warn!("\n{ddl}\nUpgrading schema from v3 to v4. ^");
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 4;
+                            version += 1;
                         } else {
-                            panic!("\n{ddl}\nFound outdated schema v3. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 4 {
                         let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v4_to_v5.sql"));
                         if upgrade_db {
-                            warn!("\n{ddl}\nUpgrading schema from v4 to v5. ^");
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 5;
+                            version += 1;
                         } else {
-                            panic!("\n{ddl}\nFound outdated schema v4. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 5 {
                         let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v5_to_v6.sql"));
                         if upgrade_db {
-                            warn!("\n{ddl}\nUpgrading schema from v5 to v6. ^ NB! There are some optional indexes, review them");
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 6;
+                            version += 1;
                         } else {
-                            panic!("\n{ddl}\nFound outdated schema v5. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     if version == 6 {
                         let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v6_to_v7.sql"));
                         if upgrade_db {
-                            warn!("\n{ddl}\nUpgrading schema from v6 to v7. ^");
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
                             query::misc::execute_ddl(ddl, &self.pool).await?;
                             info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
-                            version = 7;
+                            version += 1;
                         } else {
-                            panic!("\n{ddl}\nFound outdated schema v6. Set flag '-u' to upgrade, or apply manually ^")
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
+                        }
+                    }
+                    if version == 7 {
+                        let ddl = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/schema/v7_to_v8.sql"));
+                        if upgrade_db {
+                            warn!("\n{ddl}\nUpgrading schema from v{version} to v{}. ^", version + 1);
+                            query::misc::execute_ddl(ddl, &self.pool).await?;
+                            info!("\x1b[32mSchema upgrade completed successfully\x1b[0m");
+                            version += 1;
+                        } else {
+                            panic!("\n{ddl}\nFound outdated schema v{version}. Set flag '-u' to upgrade, or apply manually ^")
                         }
                     }
                     trace!("Schema version is v{version}")
@@ -198,8 +210,16 @@ impl KaspaDbClient {
         query::insert::insert_address_transactions(address_transactions, &self.pool).await
     }
 
+    pub async fn insert_scripts_transactions(&self, scripts_transactions: &[ScriptTransaction]) -> Result<u64, Error> {
+        query::insert::insert_scripts_transactions(scripts_transactions, &self.pool).await
+    }
+
     pub async fn insert_address_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {
         query::insert::insert_address_transactions_from_inputs(use_tx, transaction_ids, &self.pool).await
+    }
+
+    pub async fn insert_scripts_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {
+        query::insert::insert_scripts_transactions_from_inputs(use_tx, transaction_ids, &self.pool).await
     }
 
     pub async fn insert_block_transactions(&self, block_transactions: &[BlockTransaction]) -> Result<u64, Error> {

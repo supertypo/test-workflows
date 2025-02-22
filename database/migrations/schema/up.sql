@@ -111,3 +111,13 @@ CREATE TABLE addresses_transactions
     PRIMARY KEY (address, transaction_id)
 );
 CREATE INDEX ON addresses_transactions (block_time DESC);
+
+
+CREATE TABLE scripts_transactions
+(
+    script_public_key BYTEA,
+    transaction_id    BYTEA,
+    block_time        BIGINT,
+    PRIMARY KEY (script_public_key, transaction_id)
+);
+CREATE INDEX ON scripts_transactions (block_time DESC);

@@ -10,6 +10,7 @@ use simply_kaspa_cli::cli_args::{CliDisable, CliField};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::address_transaction::AddressTransaction;
 use simply_kaspa_database::models::block_transaction::BlockTransaction;
+use simply_kaspa_database::models::script_transaction::ScriptTransaction;
 use simply_kaspa_database::models::transaction::Transaction;
 use simply_kaspa_database::models::transaction_input::TransactionInput;
 use simply_kaspa_database::models::transaction_output::TransactionOutput;
@@ -47,12 +48,15 @@ pub async fn process_transactions(
     let disable_transactions_outputs = settings.cli_args.is_disabled(CliDisable::TransactionsOutputsTable);
     let disable_blocks_transactions = settings.cli_args.is_disabled(CliDisable::BlocksTransactionsTable);
     let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressesTransactionsTable);
+    let exclude_tx_out_script_public_key_address = settings.cli_args.is_excluded(CliField::TxOutScriptPublicKeyAddress);
+    let exclude_tx_out_script_public_key = settings.cli_args.is_excluded(CliField::TxOutScriptPublicKey);
 
     let mut transactions = vec![];
     let mut block_tx = vec![];
     let mut tx_inputs = vec![];
     let mut tx_outputs = vec![];
-    let mut tx_addresses = vec![];
+    let mut tx_address_transactions = vec![];
+    let mut tx_script_transactions = vec![];
     let mut checkpoint_blocks = vec![];
     let mut last_commit_time = Instant::now();
 
@@ -62,6 +66,18 @@ pub async fn process_transactions(
         subnetwork_map.insert(s.subnetwork_id, s.id);
     }
     info!("Loaded {} known subnetworks", subnetwork_map.len());
+
+    if !disable_address_transactions {
+        if !exclude_tx_out_script_public_key_address {
+            info!("Using addresses_transactions for address transaction mapping");
+        } else if !exclude_tx_out_script_public_key {
+            info!("Using scripts_transactions for address transaction mapping");
+        } else {
+            info!("Address transaction mapping disabled");
+        }
+    } else {
+        info!("Address transaction mapping disabled");
+    }
 
     while run.load(Ordering::Relaxed) {
         if let Some(transaction_data) = txs_queue.pop() {
@@ -92,7 +108,11 @@ pub async fn process_transactions(
                     tx_inputs.extend(mapper.map_transaction_inputs(&rpc_transaction));
                     tx_outputs.extend(mapper.map_transaction_outputs(&rpc_transaction));
                     if !disable_address_transactions {
-                        tx_addresses.extend(mapper.map_transaction_outputs_address(&rpc_transaction));
+                        if !exclude_tx_out_script_public_key_address {
+                            tx_address_transactions.extend(mapper.map_transaction_outputs_address(&rpc_transaction));
+                        } else if !exclude_tx_out_script_public_key {
+                            tx_script_transactions.extend(mapper.map_transaction_outputs_script(&rpc_transaction));
+                        }
                     }
                     tx_id_cache.insert(transaction_id, ());
                 }
@@ -126,7 +146,13 @@ pub async fn process_transactions(
                     task::spawn(async { 0 })
                 };
                 let tx_output_addr_handle = if !disable_address_transactions {
-                    task::spawn(insert_output_tx_addr(batch_scale, tx_addresses, database.clone()))
+                    if !exclude_tx_out_script_public_key_address {
+                        task::spawn(insert_output_tx_addr(batch_scale, tx_address_transactions, database.clone()))
+                    } else if !exclude_tx_out_script_public_key {
+                        task::spawn(insert_output_tx_script(batch_scale, tx_script_transactions, database.clone()))
+                    } else {
+                        task::spawn(async { 0 })
+                    }
                 } else {
                     task::spawn(async { 0 })
                 };
@@ -139,8 +165,13 @@ pub async fn process_transactions(
                 if !disable_address_transactions {
                     // ^Input address resolving can only happen after the transaction + inputs + outputs are committed
                     let use_tx_for_time = settings.cli_args.is_excluded(CliField::TxInBlockTime);
-                    rows_affected_tx_addresses +=
-                        insert_input_tx_addr(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await;
+                    rows_affected_tx_addresses += if !exclude_tx_out_script_public_key_address {
+                        insert_input_tx_addr(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await
+                    } else if !exclude_tx_out_script_public_key {
+                        insert_input_tx_script(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await
+                    } else {
+                        0
+                    };
                 }
                 let last_checkpoint = checkpoint_blocks.last().unwrap().clone();
                 let last_block_time = last_checkpoint.timestamp;
@@ -172,7 +203,8 @@ pub async fn process_transactions(
                 block_tx = vec![];
                 tx_inputs = vec![];
                 tx_outputs = vec![];
-                tx_addresses = vec![];
+                tx_address_transactions = vec![];
+                tx_script_transactions = vec![];
                 checkpoint_blocks = vec![];
                 last_commit_time = Instant::now();
             }
@@ -237,6 +269,22 @@ async fn insert_input_tx_addr(batch_scale: f64, use_tx: bool, values: Vec<SqlHas
     rows_affected
 }
 
+async fn insert_input_tx_script(batch_scale: f64, use_tx: bool, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
+    let batch_size = min((200f64 * batch_scale) as u16, 8000) as usize;
+    let key = "input scripts_transactions";
+    let start_time = Instant::now();
+    debug!("Processing {} transactions for {}", values.len(), key);
+    let mut rows_affected = 0;
+    for batch_values in values.chunks(batch_size) {
+        rows_affected += database
+            .insert_scripts_transactions_from_inputs(use_tx, batch_values)
+            .await
+            .unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+    }
+    debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
+    rows_affected
+}
+
 async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>, database: KaspaDbClient) -> u64 {
     let batch_size = min((500f64 * batch_scale) as u16, 20000) as usize; // 2^16 / fields
     let key = "output addresses_transactions";
@@ -245,6 +293,19 @@ async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
         rows_affected += database.insert_address_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+    }
+    debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
+    rows_affected
+}
+
+async fn insert_output_tx_script(batch_scale: f64, values: Vec<ScriptTransaction>, database: KaspaDbClient) -> u64 {
+    let batch_size = min((500f64 * batch_scale) as u16, 20000) as usize; // 2^16 / fields
+    let key = "output scripts_transactions";
+    let start_time = Instant::now();
+    debug!("Processing {} {}", values.len(), key);
+    let mut rows_affected = 0;
+    for batch_values in values.chunks(batch_size) {
+        rows_affected += database.insert_scripts_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected

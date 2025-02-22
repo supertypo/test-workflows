@@ -4,6 +4,7 @@ use simply_kaspa_database::models::address_transaction::AddressTransaction as Sq
 use simply_kaspa_database::models::block::Block as SqlBlock;
 use simply_kaspa_database::models::block_parent::BlockParent as SqlBlockParent;
 use simply_kaspa_database::models::block_transaction::BlockTransaction as SqlBlockTransaction;
+use simply_kaspa_database::models::script_transaction::ScriptTransaction as SqlScriptTransaction;
 use simply_kaspa_database::models::transaction::Transaction as SqlTransaction;
 use simply_kaspa_database::models::transaction_input::TransactionInput as SqlTransactionInput;
 use simply_kaspa_database::models::transaction_output::TransactionOutput as SqlTransactionOutput;
@@ -145,5 +146,9 @@ impl KaspaDbMapper {
 
     pub fn map_transaction_outputs_address(&self, transaction: &RpcTransaction) -> Vec<SqlAddressTransaction> {
         transactions::map_transaction_outputs_address(transaction)
+    }
+
+    pub fn map_transaction_outputs_script(&self, transaction: &RpcTransaction) -> Vec<SqlScriptTransaction> {
+        transactions::map_transaction_outputs_script(transaction)
     }
 }

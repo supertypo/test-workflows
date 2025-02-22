@@ -5,6 +5,7 @@ use crate::models::address_transaction::AddressTransaction;
 use crate::models::block::Block;
 use crate::models::block_parent::BlockParent;
 use crate::models::block_transaction::BlockTransaction;
+use crate::models::script_transaction::ScriptTransaction;
 use crate::models::transaction::Transaction;
 use crate::models::transaction_acceptance::TransactionAcceptance;
 use crate::models::transaction_input::TransactionInput;
@@ -144,6 +145,22 @@ pub async fn insert_address_transactions(address_transactions: &[AddressTransact
     Ok(query.execute(pool).await?.rows_affected())
 }
 
+pub async fn insert_scripts_transactions(address_transactions: &[ScriptTransaction], pool: &Pool<Postgres>) -> Result<u64, Error> {
+    const COLS: usize = 3;
+    let sql = format!(
+        "INSERT INTO scripts_transactions (script_public_key, transaction_id, block_time)
+        VALUES {} ON CONFLICT DO NOTHING",
+        generate_placeholders(address_transactions.len(), COLS)
+    );
+    let mut query = sqlx::query(&sql);
+    for address_transaction in address_transactions {
+        query = query.bind(&address_transaction.script_public_key);
+        query = query.bind(&address_transaction.transaction_id);
+        query = query.bind(address_transaction.block_time);
+    }
+    Ok(query.execute(pool).await?.rows_affected())
+}
+
 pub async fn insert_address_transactions_from_inputs(
     use_tx: bool,
     transaction_ids: &[Hash],
@@ -160,6 +177,30 @@ pub async fn insert_address_transactions_from_inputs(
     } else {
         "INSERT INTO addresses_transactions (address, transaction_id, block_time)
         SELECT o.script_public_key_address, i.transaction_id, i.block_time
+            FROM transactions_inputs i
+            JOIN transactions_outputs o ON o.transaction_id = i.previous_outpoint_hash AND o.index = i.previous_outpoint_index
+        WHERE i.transaction_id = ANY($1)
+        ON CONFLICT DO NOTHING"
+    };
+    Ok(sqlx::query(sql).bind(transaction_ids).execute(pool).await?.rows_affected())
+}
+
+pub async fn insert_scripts_transactions_from_inputs(
+    use_tx: bool,
+    transaction_ids: &[Hash],
+    pool: &Pool<Postgres>,
+) -> Result<u64, Error> {
+    let sql = if use_tx {
+        "INSERT INTO scripts_transactions (script_public_key, transaction_id, block_time)
+        SELECT o.script_public_key, i.transaction_id, t.block_time
+            FROM transactions_inputs i
+            JOIN transactions t ON t.transaction_id = i.transaction_id
+            JOIN transactions_outputs o ON o.transaction_id = i.previous_outpoint_hash AND o.index = i.previous_outpoint_index
+        WHERE i.transaction_id = ANY($1) AND t.transaction_id = ANY($1)
+        ON CONFLICT DO NOTHING"
+    } else {
+        "INSERT INTO scripts_transactions (script_public_key, transaction_id, block_time)
+        SELECT o.script_public_key, i.transaction_id, i.block_time
             FROM transactions_inputs i
             JOIN transactions_outputs o ON o.transaction_id = i.previous_outpoint_hash AND o.index = i.previous_outpoint_index
         WHERE i.transaction_id = ANY($1)
