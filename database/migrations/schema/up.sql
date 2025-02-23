@@ -3,7 +3,7 @@ CREATE TABLE vars
     key   VARCHAR(255) PRIMARY KEY,
     value TEXT NOT NULL
 );
-INSERT INTO vars (key, value) VALUES ('schema_version', '7');
+INSERT INTO vars (key, value) VALUES ('schema_version', '8');
 
 
 CREATE TABLE blocks
