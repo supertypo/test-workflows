@@ -18,6 +18,10 @@ See --help for a list of optional fields.
 In addition to optional tables, many fields can be left empty if they are not required for your use case.  
 Use exclude-fields arguments to fine tune. See --help for a list of optional fields.
 
+### Index by script instead of address
+If addresses_transactions_table is NOT disabled and exclude-fields contains tx_out_script_public_key_address (and not tx_out_script_public_key),  
+the indexer will use scripts_transactions instead of addresses_transactions for indexing addresses for > 25% space savings.
+
 ### Postgres tuning
 Make sure to tune Postgres to your specific hardware, here is an example for a server with 12GB RAM and SSD storage:
 ```
@@ -165,7 +169,7 @@ Options:
           - transactions_table:           Disables the transactions table
           - transactions_inputs_table:    Disables the transactions_inputs table
           - transactions_outputs_table:   Disables the transactions_outputs table
-          - addresses_transactions_table: Disables the addresses_transactions table
+          - addresses_transactions_table: Disables the addresses_transactions (or scripts_transactions) table
           - vcp_wait_for_sync:            Start VCP as soon as the filler has passed the previous run. Use with care
 
       --exclude-fields <EXCLUDE_FIELDS>
@@ -179,7 +183,7 @@ Options:
           - block_selected_parent_hash
           - block_bits
           - block_blue_work
-          - block_blue_score:                 NB! Used for sorting blocks
+          - block_blue_score:                 Used for sorting blocks
           - block_daa_score
           - block_hash_merkle_root
           - block_nonce
@@ -187,17 +191,17 @@ Options:
           - block_timestamp
           - block_utxo_commitment
           - block_version
-          - tx_subnetwork_id:                 NB! Used for identifying tx type (coinbase/regular)
+          - tx_subnetwork_id:                 Used for identifying tx type (coinbase/regular)
           - tx_hash
           - tx_mass
           - tx_payload
-          - tx_block_time:                    NB! Used for sorting transactions
-          - tx_in_previous_outpoint:          NB! Used for identifying wallet address of sender
+          - tx_block_time:                    Used for sorting transactions
+          - tx_in_previous_outpoint:          Used for identifying wallet address of sender
           - tx_in_signature_script
           - tx_in_sig_op_count
-          - tx_in_block_time
+          - tx_in_block_time:                 Excluding this will increase load for populating adress-/scripts_transactions
           - tx_out_amount
-          - tx_out_script_public_key:         NB! Used for identifying wallet addresses
-          - tx_out_script_public_key_address: NB! Used for identifying wallet addresses
+          - tx_out_script_public_key:         Excluding both this and script_public_key_address will disable adress-/scripts_transactions
+          - tx_out_script_public_key_address: Excluding this, scripts_transactions to be populated instead of adresses_transactions
           - tx_out_block_time
 ```
