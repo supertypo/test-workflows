@@ -145,18 +145,18 @@ pub async fn insert_address_transactions(address_transactions: &[AddressTransact
     Ok(query.execute(pool).await?.rows_affected())
 }
 
-pub async fn insert_scripts_transactions(address_transactions: &[ScriptTransaction], pool: &Pool<Postgres>) -> Result<u64, Error> {
+pub async fn insert_script_transactions(script_transactions: &[ScriptTransaction], pool: &Pool<Postgres>) -> Result<u64, Error> {
     const COLS: usize = 3;
     let sql = format!(
         "INSERT INTO scripts_transactions (script_public_key, transaction_id, block_time)
         VALUES {} ON CONFLICT DO NOTHING",
-        generate_placeholders(address_transactions.len(), COLS)
+        generate_placeholders(script_transactions.len(), COLS)
     );
     let mut query = sqlx::query(&sql);
-    for address_transaction in address_transactions {
-        query = query.bind(&address_transaction.script_public_key);
-        query = query.bind(&address_transaction.transaction_id);
-        query = query.bind(address_transaction.block_time);
+    for script_transaction in script_transactions {
+        query = query.bind(&script_transaction.script_public_key);
+        query = query.bind(&script_transaction.transaction_id);
+        query = query.bind(script_transaction.block_time);
     }
     Ok(query.execute(pool).await?.rows_affected())
 }
@@ -185,7 +185,7 @@ pub async fn insert_address_transactions_from_inputs(
     Ok(sqlx::query(sql).bind(transaction_ids).execute(pool).await?.rows_affected())
 }
 
-pub async fn insert_scripts_transactions_from_inputs(
+pub async fn insert_script_transactions_from_inputs(
     use_tx: bool,
     transaction_ids: &[Hash],
     pool: &Pool<Postgres>,

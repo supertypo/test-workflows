@@ -210,16 +210,16 @@ impl KaspaDbClient {
         query::insert::insert_address_transactions(address_transactions, &self.pool).await
     }
 
-    pub async fn insert_scripts_transactions(&self, scripts_transactions: &[ScriptTransaction]) -> Result<u64, Error> {
-        query::insert::insert_scripts_transactions(scripts_transactions, &self.pool).await
+    pub async fn insert_script_transactions(&self, script_transactions: &[ScriptTransaction]) -> Result<u64, Error> {
+        query::insert::insert_script_transactions(script_transactions, &self.pool).await
     }
 
     pub async fn insert_address_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {
         query::insert::insert_address_transactions_from_inputs(use_tx, transaction_ids, &self.pool).await
     }
 
-    pub async fn insert_scripts_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {
-        query::insert::insert_scripts_transactions_from_inputs(use_tx, transaction_ids, &self.pool).await
+    pub async fn insert_script_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {
+        query::insert::insert_script_transactions_from_inputs(use_tx, transaction_ids, &self.pool).await
     }
 
     pub async fn insert_block_transactions(&self, block_transactions: &[BlockTransaction]) -> Result<u64, Error> {

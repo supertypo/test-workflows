@@ -277,7 +277,7 @@ async fn insert_input_tx_script(batch_scale: f64, use_tx: bool, values: Vec<SqlH
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
         rows_affected += database
-            .insert_scripts_transactions_from_inputs(use_tx, batch_values)
+            .insert_script_transactions_from_inputs(use_tx, batch_values)
             .await
             .unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
@@ -305,7 +305,7 @@ async fn insert_output_tx_script(batch_scale: f64, values: Vec<ScriptTransaction
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_scripts_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected += database.insert_script_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
