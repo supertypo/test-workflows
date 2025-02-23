@@ -114,7 +114,7 @@ async fn start_processing(
         info!("Disable functionality is set, the following functionality will be disabled: {:?}", disable);
     }
     if let Some(exclude_fields) = &cli_args.exclude_fields {
-        info!("Exclude fields is set, the following (non-required) fields will be excluded: {:?}", exclude_fields);
+        info!("Exclude fields is set, the following fields will be excluded: {:?}", exclude_fields);
     }
     let checkpoint_block = match kaspad_pool.get().await.unwrap().get_block(checkpoint, false).await {
         Ok(block) => Some(CheckpointBlock {
