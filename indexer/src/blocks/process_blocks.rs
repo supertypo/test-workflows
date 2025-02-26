@@ -31,7 +31,7 @@ pub async fn process_blocks(
 ) {
     const NOOP_DELETES_BEFORE_VCP: i32 = 10;
     let batch_scale = settings.cli_args.batch_scale;
-    let batch_size = (500f64 * batch_scale) as usize;
+    let batch_size = (800f64 * batch_scale) as usize;
     let disable_virtual_chain_processing = settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
     let disable_vcp_wait_for_sync = settings.cli_args.is_disabled(CliDisable::VcpWaitForSync);
     let disable_blocks = settings.cli_args.is_disabled(CliDisable::BlocksTable);
@@ -129,7 +129,7 @@ pub async fn process_blocks(
 }
 
 async fn insert_blocks(batch_scale: f64, values: Vec<Block>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((350f64 * batch_scale) as usize, 3500); // 2^16 / fields
+    let batch_size = min((200f64 * batch_scale) as usize, 3500); // 2^16 / fields
     let key = "blocks";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
@@ -142,7 +142,7 @@ async fn insert_blocks(batch_scale: f64, values: Vec<Block>, database: KaspaDbCl
 }
 
 async fn insert_block_parents(batch_scale: f64, values: Vec<BlockParent>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((700f64 * batch_scale) as usize, 10000); // 2^16 / fields
+    let batch_size = min((400f64 * batch_scale) as usize, 10000); // 2^16 / fields
     let key = "block_parents";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);

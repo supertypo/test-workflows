@@ -10,7 +10,7 @@ pub async fn accept_transactions(
     accepted_transaction_ids: &Vec<RpcAcceptedTransactionIds>,
     database: &KaspaDbClient,
 ) -> u64 {
-    let batch_size = min((1000f64 * batch_scale) as usize, 7500);
+    let batch_size = min((500f64 * batch_scale) as usize, 7500);
     if log::log_enabled!(log::Level::Debug) {
         let accepted_count = accepted_transaction_ids.iter().map(|t| t.accepted_transaction_ids.len()).sum::<usize>();
         debug!("Received {} accepted transactions", accepted_count);

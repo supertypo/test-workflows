@@ -215,7 +215,7 @@ pub async fn process_transactions(
 }
 
 async fn insert_txs(batch_scale: f64, values: Vec<Transaction>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((400f64 * batch_scale) as u16, 8000) as usize; // 2^16 / fields
+    let batch_size = min((250f64 * batch_scale) as u16, 8000) as usize; // 2^16 / fields
     let key = "transactions";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
@@ -228,7 +228,7 @@ async fn insert_txs(batch_scale: f64, values: Vec<Transaction>, database: KaspaD
 }
 
 async fn insert_tx_inputs(batch_scale: f64, values: Vec<TransactionInput>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((400f64 * batch_scale) as u16, 8000) as usize; // 2^16 / fields
+    let batch_size = min((250f64 * batch_scale) as u16, 8000) as usize; // 2^16 / fields
     let key = "transaction_inputs";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
@@ -241,7 +241,7 @@ async fn insert_tx_inputs(batch_scale: f64, values: Vec<TransactionInput>, datab
 }
 
 async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((500f64 * batch_scale) as u16, 10000) as usize; // 2^16 / fields
+    let batch_size = min((250f64 * batch_scale) as u16, 10000) as usize; // 2^16 / fields
     let key = "transactions_outputs";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
@@ -254,7 +254,7 @@ async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, dat
 }
 
 async fn insert_input_tx_addr(batch_scale: f64, use_tx: bool, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((200f64 * batch_scale) as u16, 8000) as usize;
+    let batch_size = min((100f64 * batch_scale) as u16, 8000) as usize;
     let key = "input addresses_transactions";
     let start_time = Instant::now();
     debug!("Processing {} transactions for {}", values.len(), key);
@@ -270,7 +270,7 @@ async fn insert_input_tx_addr(batch_scale: f64, use_tx: bool, values: Vec<SqlHas
 }
 
 async fn insert_input_tx_script(batch_scale: f64, use_tx: bool, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((200f64 * batch_scale) as u16, 8000) as usize;
+    let batch_size = min((100f64 * batch_scale) as u16, 8000) as usize;
     let key = "input scripts_transactions";
     let start_time = Instant::now();
     debug!("Processing {} transactions for {}", values.len(), key);
@@ -286,7 +286,7 @@ async fn insert_input_tx_script(batch_scale: f64, use_tx: bool, values: Vec<SqlH
 }
 
 async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((500f64 * batch_scale) as u16, 20000) as usize; // 2^16 / fields
+    let batch_size = min((250f64 * batch_scale) as u16, 20000) as usize; // 2^16 / fields
     let key = "output addresses_transactions";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
@@ -299,7 +299,7 @@ async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>
 }
 
 async fn insert_output_tx_script(batch_scale: f64, values: Vec<ScriptTransaction>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((500f64 * batch_scale) as u16, 20000) as usize; // 2^16 / fields
+    let batch_size = min((250f64 * batch_scale) as u16, 20000) as usize; // 2^16 / fields
     let key = "output scripts_transactions";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
@@ -312,7 +312,7 @@ async fn insert_output_tx_script(batch_scale: f64, values: Vec<ScriptTransaction
 }
 
 async fn insert_block_txs(batch_scale: f64, values: Vec<BlockTransaction>, database: KaspaDbClient) -> u64 {
-    let batch_size = min((800f64 * batch_scale) as u16, 30000) as usize; // 2^16 / fields
+    let batch_size = min((500f64 * batch_scale) as u16, 30000) as usize; // 2^16 / fields
     let key = "block/transaction mappings";
     let start_time = Instant::now();
     debug!("Processing {} {}", values.len(), key);
