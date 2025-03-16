@@ -22,6 +22,8 @@ pub enum CliDisable {
     TransactionsTable,
     /// Disables the transactions_inputs table
     TransactionsInputsTable,
+    /// Disables resolving transactions_inputs previous_outpoint
+    TransactionsInputsResolve,
     /// Disables the transactions_outputs table
     TransactionsOutputsTable,
     /// Disables the addresses_transactions (or scripts_transactions) table

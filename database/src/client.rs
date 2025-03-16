@@ -27,7 +27,7 @@ pub struct KaspaDbClient {
 }
 
 impl KaspaDbClient {
-    const SCHEMA_VERSION: u8 = 8;
+    const SCHEMA_VERSION: u8 = 9;
 
     pub async fn new(url: &str) -> Result<KaspaDbClient, Error> {
         Self::new_with_args(url, 10).await
@@ -223,6 +223,10 @@ impl KaspaDbClient {
 
     pub async fn insert_script_transactions(&self, script_transactions: &[ScriptTransaction]) -> Result<u64, Error> {
         query::insert::insert_script_transactions(script_transactions, &self.pool).await
+    }
+
+    pub async fn insert_inputs_previous_outpoints(&self, transaction_ids: &[Hash]) -> Result<u64, Error> {
+        query::insert::insert_inputs_previous_outpoints(transaction_ids, &self.pool).await
     }
 
     pub async fn insert_address_transactions_from_inputs(&self, use_tx: bool, transaction_ids: &[Hash]) -> Result<u64, Error> {

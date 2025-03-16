@@ -45,6 +45,7 @@ pub async fn process_transactions(
 
     let disable_transactions = settings.cli_args.is_disabled(CliDisable::TransactionsTable);
     let disable_transactions_inputs = settings.cli_args.is_disabled(CliDisable::TransactionsInputsTable);
+    let disable_transactions_inputs_resolve = settings.cli_args.is_disabled(CliDisable::TransactionsInputsResolve);
     let disable_transactions_outputs = settings.cli_args.is_disabled(CliDisable::TransactionsOutputsTable);
     let disable_blocks_transactions = settings.cli_args.is_disabled(CliDisable::BlocksTransactionsTable);
     let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressesTransactionsTable);
@@ -123,7 +124,7 @@ pub async fn process_transactions(
             {
                 let start_commit_time = Instant::now();
                 let transactions_len = transactions.len();
-                let transaction_ids = transactions.iter().map(|t| t.transaction_id.clone()).collect();
+                let transaction_ids: Vec<SqlHash> = transactions.iter().map(|t| t.transaction_id.clone()).collect();
 
                 let tx_handle = if !disable_transactions {
                     task::spawn(insert_txs(batch_scale, transactions, database.clone()))
@@ -162,8 +163,13 @@ pub async fn process_transactions(
                 let rows_affected_block_tx = blocks_txs_handle.await.unwrap();
                 let mut rows_affected_tx_addresses = tx_output_addr_handle.await.unwrap();
 
+                // ^Input address resolving can only happen after inputs + outputs are committed
+                let rows_affected_tx_input_prev_out = if !disable_transactions_inputs_resolve {
+                    insert_input_prev_out(batch_scale, transaction_ids.clone(), database.clone()).await
+                } else {
+                    0
+                };
                 if !disable_address_transactions {
-                    // ^Input address resolving can only happen after the transaction + inputs + outputs are committed
                     let use_tx_for_time = settings.cli_args.is_excluded(CliField::TxInBlockTime);
                     rows_affected_tx_addresses += if !exclude_tx_out_script_public_key_address {
                         insert_input_tx_addr(batch_scale, use_tx_for_time, transaction_ids, database.clone()).await
@@ -189,12 +195,13 @@ pub async fn process_transactions(
                 let commit_time = Instant::now().duration_since(start_commit_time).as_millis();
                 let tps = transactions_len as f64 / commit_time as f64 * 1000f64;
                 info!(
-                    "Committed {} new txs in {}ms ({:.1} tps, {} blk_tx, {} tx_in, {} tx_out, {} adr_tx). Last tx: {}",
+                    "Committed {} new txs in {}ms ({:.1} tps, {} blk_tx, {}/{} tx_in, {} tx_out, {} adr_tx). Last tx: {}",
                     rows_affected_tx,
                     commit_time,
                     tps,
                     rows_affected_block_tx,
                     rows_affected_tx_inputs,
+                    rows_affected_tx_input_prev_out,
                     rows_affected_tx_outputs,
                     rows_affected_tx_addresses,
                     chrono::DateTime::from_timestamp_millis(last_block_time as i64 / 1000 * 1000).unwrap()
@@ -248,6 +255,20 @@ async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, dat
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
         rows_affected += database.insert_transaction_outputs(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+    }
+    debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
+    rows_affected
+}
+
+async fn insert_input_prev_out(batch_scale: f64, values: Vec<SqlHash>, database: KaspaDbClient) -> u64 {
+    let batch_size = min((100f64 * batch_scale) as u16, 8000) as usize;
+    let key = "input previous_outpoint";
+    let start_time = Instant::now();
+    debug!("Processing {} transactions for {}", values.len(), key);
+    let mut rows_affected = 0;
+    for batch_values in values.chunks(batch_size) {
+        rows_affected +=
+            database.insert_inputs_previous_outpoints(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected

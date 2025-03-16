@@ -161,6 +161,17 @@ pub async fn insert_script_transactions(script_transactions: &[ScriptTransaction
     Ok(query.execute(pool).await?.rows_affected())
 }
 
+pub async fn insert_inputs_previous_outpoints(transaction_ids: &[Hash], pool: &Pool<Postgres>) -> Result<u64, Error> {
+    let sql = "UPDATE transactions_inputs i
+        SET previous_outpoint_script = o.script_public_key,
+            previous_outpoint_amount = o.amount
+        FROM transactions_outputs o
+        WHERE i.transaction_id = ANY($1)
+        AND i.previous_outpoint_hash = o.transaction_id
+        AND i.previous_outpoint_index = o.index";
+    Ok(sqlx::query(sql).bind(transaction_ids).execute(pool).await?.rows_affected())
+}
+
 pub async fn insert_address_transactions_from_inputs(
     use_tx: bool,
     transaction_ids: &[Hash],

@@ -3,7 +3,7 @@ CREATE TABLE vars
     key   VARCHAR(255) PRIMARY KEY,
     value TEXT NOT NULL
 );
-INSERT INTO vars (key, value) VALUES ('schema_version', '8');
+INSERT INTO vars (key, value) VALUES ('schema_version', '9');
 
 
 CREATE TABLE blocks
@@ -74,13 +74,15 @@ CREATE INDEX ON blocks_transactions (transaction_id);
 
 CREATE TABLE transactions_inputs
 (
-    transaction_id          BYTEA,
-    index                   SMALLINT,
-    previous_outpoint_hash  BYTEA,
-    previous_outpoint_index SMALLINT,
-    signature_script        BYTEA,
-    sig_op_count            SMALLINT,
-    block_time              BIGINT,
+    transaction_id           BYTEA,
+    index                    SMALLINT,
+    previous_outpoint_hash   BYTEA,
+    previous_outpoint_index  SMALLINT,
+    signature_script         BYTEA,
+    sig_op_count             SMALLINT,
+    block_time               BIGINT,
+    previous_outpoint_script BYTEA,
+    previous_outpoint_amount BIGINT,
     PRIMARY KEY (transaction_id, index)
 );
 -- Create indexes (optional, if you need to search txs for address)
