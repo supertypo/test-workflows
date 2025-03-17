@@ -4,6 +4,14 @@ use utoipa::ToSchema;
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, ToSchema, Serialize, Deserialize)]
 #[clap(rename_all = "snake_case")]
+pub enum CliEnable {
+    None,
+    /// Enables resolving transactions_inputs previous_outpoint
+    TransactionsInputsResolve,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum, ToSchema, Serialize, Deserialize)]
+#[clap(rename_all = "snake_case")]
 pub enum CliDisable {
     None,
     /// Disables the virtual chain processor / the transactions_acceptances table
@@ -22,8 +30,6 @@ pub enum CliDisable {
     TransactionsTable,
     /// Disables the transactions_inputs table
     TransactionsInputsTable,
-    /// Disables resolving transactions_inputs previous_outpoint
-    TransactionsInputsResolve,
     /// Disables the transactions_outputs table
     TransactionsOutputsTable,
     /// Disables the addresses_transactions (or scripts_transactions) table
@@ -100,6 +106,8 @@ pub struct CliArgs {
     pub upgrade_db: bool,
     #[clap(short = 'c', long, help = "(Re-)initializes the database schema. Use with care")]
     pub initialize_db: bool,
+    #[clap(long, help = "Enable optional functionality", value_enum, use_value_delimiter = true)]
+    pub enable: Option<Vec<CliEnable>>,
     #[clap(long, help = "Disable specific functionality", value_enum, use_value_delimiter = true)]
     pub disable: Option<Vec<CliDisable>>,
     #[clap(
@@ -112,6 +120,10 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
+    pub fn is_enabled(&self, feature: CliEnable) -> bool {
+        self.enable.as_ref().map_or(false, |enable| enable.contains(&feature))
+    }
+
     pub fn is_disabled(&self, feature: CliDisable) -> bool {
         self.disable.as_ref().map_or(false, |disable| disable.contains(&feature))
     }

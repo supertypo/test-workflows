@@ -6,7 +6,7 @@ use crossbeam_queue::ArrayQueue;
 use kaspa_hashes::Hash as KaspaHash;
 use log::{debug, info, trace, warn};
 use moka::sync::Cache;
-use simply_kaspa_cli::cli_args::{CliDisable, CliField};
+use simply_kaspa_cli::cli_args::{CliDisable, CliEnable, CliField};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::address_transaction::AddressTransaction;
 use simply_kaspa_database::models::block_transaction::BlockTransaction;
@@ -43,9 +43,9 @@ pub async fn process_transactions(
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (5000f64 * batch_scale) as usize;
 
+    let enable_transactions_inputs_resolve = settings.cli_args.is_enabled(CliEnable::TransactionsInputsResolve);
     let disable_transactions = settings.cli_args.is_disabled(CliDisable::TransactionsTable);
     let disable_transactions_inputs = settings.cli_args.is_disabled(CliDisable::TransactionsInputsTable);
-    let disable_transactions_inputs_resolve = settings.cli_args.is_disabled(CliDisable::TransactionsInputsResolve);
     let disable_transactions_outputs = settings.cli_args.is_disabled(CliDisable::TransactionsOutputsTable);
     let disable_blocks_transactions = settings.cli_args.is_disabled(CliDisable::BlocksTransactionsTable);
     let disable_address_transactions = settings.cli_args.is_disabled(CliDisable::AddressesTransactionsTable);
@@ -164,7 +164,7 @@ pub async fn process_transactions(
                 let mut rows_affected_tx_addresses = tx_output_addr_handle.await.unwrap();
 
                 // ^Input address resolving can only happen after inputs + outputs are committed
-                let rows_affected_tx_input_prev_out = if !disable_transactions_inputs_resolve {
+                let rows_affected_tx_input_prev_out = if enable_transactions_inputs_resolve {
                     insert_input_prev_out(batch_scale, transaction_ids.clone(), database.clone()).await
                 } else {
                     0

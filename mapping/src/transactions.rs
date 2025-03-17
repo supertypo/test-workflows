@@ -53,6 +53,8 @@ pub fn map_transaction_inputs(
             signature_script: include_signature_script.then_some(input.signature_script.clone()),
             sig_op_count: include_sig_op_count.then_some(input.sig_op_count as i16),
             block_time: include_block_time.then_some(tx_verbose_data.block_time.to_i64().unwrap()),
+            previous_outpoint_script: None,
+            previous_outpoint_amount: None,
         })
         .collect::<Vec<SqlTransactionInput>>()
 }
