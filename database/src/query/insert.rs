@@ -89,14 +89,34 @@ pub async fn insert_transactions(transactions: &[Transaction], pool: &Pool<Postg
     Ok(query.execute(pool).await?.rows_affected())
 }
 
-pub async fn insert_transaction_inputs(transaction_inputs: &[TransactionInput], pool: &Pool<Postgres>) -> Result<u64, Error> {
+pub async fn insert_transaction_inputs(
+    resolve_previous_outpoints: bool,
+    transaction_inputs: &[TransactionInput],
+    pool: &Pool<Postgres>,
+) -> Result<u64, Error> {
     const COLS: usize = 7;
-    let sql = format!(
-        "INSERT INTO transactions_inputs (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
+    let sql = if resolve_previous_outpoints {
+        format!(
+            "INSERT INTO transactions_inputs (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
+                signature_script, sig_op_count, block_time, previous_outpoint_script, previous_outpoint_amount)
+            SELECT i.transaction_id, i.index, i.previous_outpoint_hash, i.previous_outpoint_index,
+                i.signature_script, i.sig_op_count, i.block_time, o.script_public_key, o.amount
+            FROM (VALUES {}) AS i (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
+                signature_script, sig_op_count, block_time)
+            LEFT JOIN transactions_outputs o
+                ON i.previous_outpoint_hash = o.transaction_id 
+                AND i.previous_outpoint_index = o.index
+            ON CONFLICT DO NOTHING",
+            generate_placeholders(transaction_inputs.len(), COLS)
+        )
+    } else {
+        format!(
+            "INSERT INTO transactions_inputs (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
             signature_script, sig_op_count, block_time)
         VALUES {} ON CONFLICT DO NOTHING",
-        generate_placeholders(transaction_inputs.len(), COLS)
-    );
+            generate_placeholders(transaction_inputs.len(), COLS)
+        )
+    };
     let mut query = sqlx::query(&sql);
     for tin in transaction_inputs {
         query = query.bind(&tin.transaction_id);
@@ -159,17 +179,6 @@ pub async fn insert_script_transactions(script_transactions: &[ScriptTransaction
         query = query.bind(script_transaction.block_time);
     }
     Ok(query.execute(pool).await?.rows_affected())
-}
-
-pub async fn insert_inputs_previous_outpoints(transaction_ids: &[Hash], pool: &Pool<Postgres>) -> Result<u64, Error> {
-    let sql = "UPDATE transactions_inputs i
-        SET previous_outpoint_script = o.script_public_key,
-            previous_outpoint_amount = o.amount
-        FROM transactions_outputs o
-        WHERE i.transaction_id = ANY($1)
-        AND i.previous_outpoint_hash = o.transaction_id
-        AND i.previous_outpoint_index = o.index";
-    Ok(sqlx::query(sql).bind(transaction_ids).execute(pool).await?.rows_affected())
 }
 
 pub async fn insert_address_transactions_from_inputs(
