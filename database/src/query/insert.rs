@@ -112,8 +112,8 @@ pub async fn insert_transaction_inputs(
     } else {
         format!(
             "INSERT INTO transactions_inputs (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
-            signature_script, sig_op_count, block_time)
-        VALUES {} ON CONFLICT DO NOTHING",
+                signature_script, sig_op_count, block_time)
+            VALUES {} ON CONFLICT DO NOTHING",
             generate_placeholders(transaction_inputs.len(), COLS)
         )
     };
