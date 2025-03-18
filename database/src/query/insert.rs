@@ -94,15 +94,18 @@ pub async fn insert_transaction_inputs(
     transaction_inputs: &[TransactionInput],
     pool: &Pool<Postgres>,
 ) -> Result<u64, Error> {
-    const COLS: usize = 7;
+    const COLS: usize = 9;
     let sql = if resolve_previous_outpoints {
         format!(
-            "INSERT INTO transactions_inputs (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
-                signature_script, sig_op_count, block_time, previous_outpoint_script, previous_outpoint_amount)
+            "INSERT INTO transactions_inputs (
+                transaction_id, index, previous_outpoint_hash, previous_outpoint_index, signature_script, sig_op_count, block_time, 
+                COALESCE(i.previous_outpoint_script, o.script_public_key), 
+                COALESCE(i.previous_outpoint_amount, o.amount)
+            )
             SELECT i.transaction_id, i.index, i.previous_outpoint_hash, i.previous_outpoint_index,
                 i.signature_script, i.sig_op_count, i.block_time, o.script_public_key, o.amount
             FROM (VALUES {}) AS i (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
-                signature_script, sig_op_count, block_time)
+                signature_script, sig_op_count, block_time, previous_outpoint_script, previous_outpoint_amount)
             LEFT JOIN transactions_outputs o
                 ON i.previous_outpoint_hash = o.transaction_id 
                 AND i.previous_outpoint_index = o.index
@@ -126,6 +129,8 @@ pub async fn insert_transaction_inputs(
         query = query.bind(&tin.signature_script);
         query = query.bind(tin.sig_op_count);
         query = query.bind(tin.block_time);
+        query = query.bind(&tin.previous_outpoint_script);
+        query = query.bind(tin.previous_outpoint_amount);
     }
     Ok(query.execute(pool).await?.rows_affected())
 }
