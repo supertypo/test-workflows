@@ -97,13 +97,12 @@ pub async fn insert_transaction_inputs(
     const COLS: usize = 9;
     let sql = if resolve_previous_outpoints {
         format!(
-            "INSERT INTO transactions_inputs (
-                transaction_id, index, previous_outpoint_hash, previous_outpoint_index, signature_script, sig_op_count, block_time, 
+            "INSERT INTO transactions_inputs (transaction_id, index, previous_outpoint_hash, previous_outpoint_index, 
+                signature_script, sig_op_count, block_time, previous_outpoint_script, previous_outpoint_amount)
+            SELECT 
+                i.transaction_id, i.index, i.previous_outpoint_hash, i.previous_outpoint_index, i.signature_script, i.sig_op_count, i.block_time, 
                 COALESCE(i.previous_outpoint_script, o.script_public_key), 
                 COALESCE(i.previous_outpoint_amount, o.amount)
-            )
-            SELECT i.transaction_id, i.index, i.previous_outpoint_hash, i.previous_outpoint_index,
-                i.signature_script, i.sig_op_count, i.block_time, o.script_public_key, o.amount
             FROM (VALUES {}) AS i (transaction_id, index, previous_outpoint_hash, previous_outpoint_index,
                 signature_script, sig_op_count, block_time, previous_outpoint_script, previous_outpoint_amount)
             LEFT JOIN transactions_outputs o

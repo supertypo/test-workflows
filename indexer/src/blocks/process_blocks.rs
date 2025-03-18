@@ -135,7 +135,7 @@ async fn insert_blocks(batch_scale: f64, values: Vec<Block>, database: KaspaDbCl
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_blocks(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected += database.insert_blocks(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -148,7 +148,7 @@ async fn insert_block_parents(batch_scale: f64, values: Vec<BlockParent>, databa
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_block_parents(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected += database.insert_block_parents(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -161,7 +161,8 @@ async fn delete_transaction_acceptances(batch_scale: f64, block_hashes: Vec<SqlH
     debug!("Clearing {} {}", block_hashes.len(), key);
     let mut rows_affected = 0;
     for batch_values in block_hashes.chunks(batch_size) {
-        rows_affected += db.delete_transaction_acceptances(batch_values).await.unwrap_or_else(|_| panic!("Deleting {} FAILED", key));
+        rows_affected +=
+            db.delete_transaction_acceptances(batch_values).await.unwrap_or_else(|e| panic!("Deleting {key} FAILED: {e}"));
     }
     debug!("Cleared {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected

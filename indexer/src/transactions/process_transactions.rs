@@ -154,12 +154,17 @@ pub async fn process_transactions(
                     if enable_transactions_inputs_resolve {
                         let tx_outputs_map: HashMap<_, _> =
                             tx_outputs.iter().map(|tx| ((tx.transaction_id.clone(), tx.index), tx)).collect();
+                        let mut previous_from_outputs_count = 0;
                         for tx_input in tx_inputs.iter_mut() {
                             let key = (tx_input.previous_outpoint_hash.clone().unwrap(), tx_input.previous_outpoint_index.unwrap());
                             if let Some(tx_output) = tx_outputs_map.get(&key) {
                                 tx_input.previous_outpoint_script = tx_output.script_public_key.clone();
                                 tx_input.previous_outpoint_amount = tx_output.amount;
+                                previous_from_outputs_count += 1;
                             }
+                        }
+                        if previous_from_outputs_count > 0 {
+                            trace!("Pre-resolved {previous_from_outputs_count} tx_inputs from tx_outputs");
                         }
                     }
                     task::spawn(insert_tx_inputs(batch_scale, enable_transactions_inputs_resolve, tx_inputs, database.clone()))
@@ -236,7 +241,7 @@ async fn insert_txs(batch_scale: f64, values: Vec<Transaction>, database: KaspaD
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected += database.insert_transactions(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -257,7 +262,7 @@ async fn insert_tx_inputs(
         rows_affected += database
             .insert_transaction_inputs(resolve_previous_outpoints, batch_values)
             .await
-            .unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+            .unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -270,7 +275,8 @@ async fn insert_tx_outputs(batch_scale: f64, values: Vec<TransactionOutput>, dat
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_transaction_outputs(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected +=
+            database.insert_transaction_outputs(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -286,7 +292,7 @@ async fn insert_input_tx_addr(batch_scale: f64, use_tx: bool, values: Vec<SqlHas
         rows_affected += database
             .insert_address_transactions_from_inputs(use_tx, batch_values)
             .await
-            .unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+            .unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -302,7 +308,7 @@ async fn insert_input_tx_script(batch_scale: f64, use_tx: bool, values: Vec<SqlH
         rows_affected += database
             .insert_script_transactions_from_inputs(use_tx, batch_values)
             .await
-            .unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+            .unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -315,7 +321,8 @@ async fn insert_output_tx_addr(batch_scale: f64, values: Vec<AddressTransaction>
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_address_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected +=
+            database.insert_address_transactions(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -328,7 +335,8 @@ async fn insert_output_tx_script(batch_scale: f64, values: Vec<ScriptTransaction
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_script_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected +=
+            database.insert_script_transactions(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
@@ -341,7 +349,7 @@ async fn insert_block_txs(batch_scale: f64, values: Vec<BlockTransaction>, datab
     debug!("Processing {} {}", values.len(), key);
     let mut rows_affected = 0;
     for batch_values in values.chunks(batch_size) {
-        rows_affected += database.insert_block_transactions(batch_values).await.unwrap_or_else(|_| panic!("Insert {} FAILED", key));
+        rows_affected += database.insert_block_transactions(batch_values).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"));
     }
     debug!("Committed {} {} in {}ms", rows_affected, key, Instant::now().duration_since(start_time).as_millis());
     rows_affected
