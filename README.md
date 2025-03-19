@@ -102,10 +102,36 @@ There is a simple api available at http://localhost:8500/api (by default), it cu
 
 ## Configuration examples
 
-### Minimal configuration, recommended as a starting point for exchanges and wallet integrators.
+### Minimal configuration
+The default is well suited for a block explorers and the like, which is overkill for most other use cases.   
+This is the recommended starting point for exchanges and other 'light' integrators:
 ```
---disable=block_parent_table,blocks_transactions_table,addresses_transactions_table
---exclude-fields=block_accepted_id_merkle_root,block_merge_set_blues_hashes,block_merge_set_reds_hashes,block_selected_parent_hash,block_bits,block_blue_work,block_daa_score,block_hash_merkle_root,block_nonce,block_pruning_point,block_utxo_commitment,block_version,tx_hash,tx_mass,tx_payload,tx_in_signature_script,tx_in_sig_op_count,tx_in_block_time,tx_out_script_public_key_address,tx_out_block_time
+disable:
+    block_parent_table,
+    blocks_transactions_table,
+    addresses_transactions_table
+
+exclude-fields:
+    block_accepted_id_merkle_root,
+    block_merge_set_blues_hashes,
+    block_merge_set_reds_hashes,
+    block_selected_parent_hash,
+    block_bits,
+    block_blue_work,
+    block_daa_score,
+    block_hash_merkle_root,
+    block_nonce,
+    block_pruning_point,
+    block_utxo_commitment,
+    block_version,
+    tx_hash,
+    tx_mass,
+    tx_payload,
+    tx_in_signature_script,
+    tx_in_sig_op_count,
+    tx_in_block_time,
+    tx_out_script_public_key_address,
+    tx_out_block_time
 ```
 
 ## Help
@@ -162,6 +188,13 @@ Options:
 
   -c, --initialize-db
           (Re-)initializes the database schema. Use with care
+
+      --enable <ENABLE>
+          Enable optional functionality
+
+          Possible values:
+          - none
+          - transactions_inputs_resolve: Enables resolving transactions_inputs previous_outpoint
 
       --disable <DISABLE>
           Disable specific functionality
