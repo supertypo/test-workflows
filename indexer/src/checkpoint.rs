@@ -65,6 +65,7 @@ pub async fn process_checkpoints(
                             checkpoint_candidate = Some(checkpoint_block);
                             checkpoint_last_warned = Instant::now();
                             cp_ok_blocks = true;
+                            cp_ok_txs = false;
                         }
                     } else {
                         blocks_processed.insert(checkpoint_block.hash);
@@ -79,6 +80,8 @@ pub async fn process_checkpoints(
                     {
                         debug!("Selected block_checkpoint candidate {}", hex::encode(checkpoint_block.hash.as_bytes()));
                         checkpoint_candidate = Some(checkpoint_block);
+                        cp_ok_blocks = false;
+                        cp_ok_txs = false;
                         checkpoint_last_warned = Instant::now();
                     }
                 }
@@ -102,8 +105,6 @@ pub async fn process_checkpoints(
                     metrics.checkpoint.block = Some(checkpoint.into());
                     checkpoint_last_saved = Instant::now();
                     checkpoint_candidate = None;
-                    cp_ok_blocks = false;
-                    cp_ok_txs = false;
                 } else if Instant::now().duration_since(checkpoint_last_warned).as_secs() > CHECKPOINT_WARN_INTERVAL {
                     warn!("Still unable to save block_checkpoint {}", checkpoint_string);
                     checkpoint_last_warned = Instant::now();
