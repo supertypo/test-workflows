@@ -102,6 +102,8 @@ pub async fn process_checkpoints(
                     metrics.checkpoint.block = Some(checkpoint.into());
                     checkpoint_last_saved = Instant::now();
                     checkpoint_candidate = None;
+                    cp_ok_blocks = false;
+                    cp_ok_txs = false;
                 } else if Instant::now().duration_since(checkpoint_last_warned).as_secs() > CHECKPOINT_WARN_INTERVAL {
                     warn!("Still unable to save block_checkpoint {}", checkpoint_string);
                     checkpoint_last_warned = Instant::now();
