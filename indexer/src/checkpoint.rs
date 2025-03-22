@@ -80,9 +80,9 @@ pub async fn process_checkpoints(
                     {
                         debug!("Selected block_checkpoint candidate {}", hex::encode(checkpoint_block.hash.as_bytes()));
                         checkpoint_candidate = Some(checkpoint_block);
+                        checkpoint_last_warned = Instant::now();
                         cp_ok_blocks = false;
                         cp_ok_txs = false;
-                        checkpoint_last_warned = Instant::now();
                     }
                 }
                 CheckpointOrigin::Initial => {}
