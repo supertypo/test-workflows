@@ -165,6 +165,41 @@ ANALYZE transactions_inputs;
 ```
 If you are using kaspa-rest-server you can apply the PREV_OUT_RESOLVED=true env var afterward to disable the expensive join for resolve_previous_outpoints=light queries.
 
+### Address to transaction mapping without separate table
+When --enable=transactions_inputs_resolve is specified (see above), you can look up transactions without a separate mapping table, 
+as long as appropriate indexes is created:
+```postgresql
+CREATE INDEX ON transactions_inputs (previous_outpoint_script);
+CREATE INDEX ON transactions_inputs (block_time DESC);
+CREATE INDEX ON transactions_outputs (script_public_key);
+CREATE INDEX ON transactions_outputs (block_time DESC);
+```
+
+Make sure the filler is running without exclude on tx_in_block_time and tx_out_block_time.  
+If the db already contains inputs and/or outputs without block_time you will have to populate it manually:
+```postgresql
+CREATE TABLE transactions_inputs_with_block_time AS
+SELECT
+    i.transaction_id,
+    i.index,
+    i.previous_outpoint_hash,
+    i.previous_outpoint_index,
+    i.signature_script,
+    i.sig_op_count,
+    t.block_time,
+    i.previous_outpoint_script,
+    i.previous_outpoint_amount
+FROM transactions_inputs i
+JOIN transactions t ON i.transaction_id = t.transaction_id;
+
+DROP TABLE transactions_inputs;
+ALTER TABLE transactions_inputs_with_block_time RENAME TO transactions_inputs;
+ALTER TABLE transactions_inputs ADD PRIMARY KEY (transaction_id, index);
+ANALYZE transactions_inputs;
+```
+Then use the same method to enrich transactions_outputs with block_time from transactions.  
+Afterward you can truncate the addresses_transactions table, apply --disable=addresses_transactions_table to the indexer and start it.
+
 ## Help
 ```
 Usage: simply-kaspa-indexer [OPTIONS]
