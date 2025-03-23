@@ -134,6 +134,37 @@ exclude-fields:
     tx_out_block_time
 ```
 
+### Enable transactions_inputs_resolve
+Having the indexer resolve inputs at index time allows avoiding the expensive join at query time. In essence this load is moved to the indexer, 
+except if you also choose to use it to resolve addresses by dropping the addresses_transactions table and querying inputs and outputs directly,
+in this case the added effort is zero or even negative.  
+  
+If you want to have the indexer pre-resolve inputs but already have existing data in the db, you have to manually pre-resolve existing inputs first. 
+Make sure the indexer is stopped and apply the following SQL:
+```postgresql
+CREATE TABLE transactions_inputs_resolved AS
+SELECT
+    i.transaction_id,
+    i.index,
+    i.previous_outpoint_hash,
+    i.previous_outpoint_index,
+    i.signature_script,
+    i.sig_op_count,
+    i.block_time,
+    o.script_public_key AS previous_outpoint_script,
+    o.amount AS previous_outpoint_amount
+FROM transactions_inputs i
+LEFT JOIN transactions_outputs o
+    ON i.previous_outpoint_hash = o.transaction_id
+    AND i.previous_outpoint_index = o.index;
+
+DROP TABLE transactions_inputs;
+ALTER TABLE transactions_inputs_resolved RENAME TO transactions_inputs;
+ALTER TABLE transactions_inputs ADD PRIMARY KEY (transaction_id, index);
+ANALYZE transactions_inputs;
+```
+If you are using kaspa-rest-server you can apply the PREV_OUT_RESOLVED=true env var afterward to disable the expensive join for resolve_previous_outpoints=light queries.
+
 ## Help
 ```
 Usage: simply-kaspa-indexer [OPTIONS]
