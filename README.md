@@ -137,11 +137,11 @@ exclude-fields:
 ### Enable transactions_inputs_resolve
 Having the indexer resolve inputs at index time allows avoiding the expensive join at query time. In essence this load is moved to the indexer, 
 except if you also choose to use it to resolve addresses by dropping the addresses_transactions table and querying inputs and outputs directly,
-in this case the added effort is zero or even negative.  
+in this case the added effort is zero or even negative. To enable add the argument: --enable=transactions_inputs_resolve.  
   
 If you want to have the indexer pre-resolve inputs but already have existing data in the db, you have to manually pre-resolve existing inputs first. 
 Make sure the indexer is stopped and apply the following SQL:
-```postgresql
+```sql
 CREATE TABLE transactions_inputs_resolved AS
 SELECT
     i.transaction_id,
@@ -170,7 +170,7 @@ When --enable=transactions_inputs_resolve is specified (see above), you can look
   
 First make sure the filler is running without exclude on tx_in_block_time and tx_out_block_time.  
 If the db already contains inputs and/or outputs without block_time you will have to populate the column manually:
-```postgresql
+```sql
 CREATE TABLE transactions_inputs_with_block_time AS
 SELECT
     i.transaction_id,
@@ -193,13 +193,13 @@ ANALYZE transactions_inputs;
 Then use the same method to enrich transactions_outputs with block_time from transactions.  
 
 Lastly the appropriate indexes for efficient querying must be created:
-```postgresql
+```sql
 CREATE INDEX ON transactions_inputs (previous_outpoint_script);
 CREATE INDEX ON transactions_inputs (block_time DESC);
 CREATE INDEX ON transactions_outputs (script_public_key);
 CREATE INDEX ON transactions_outputs (block_time DESC);
 ```
-Afterward you can truncate the addresses_transactions table, apply --disable=addresses_transactions_table to the indexer and start it.
+Afterward truncate the addresses_transactions/scripts_transactions table, apply --disable=addresses_transactions_table to the indexer and start it.
 
 ## Help
 ```
