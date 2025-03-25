@@ -85,9 +85,8 @@ CREATE TABLE transactions_inputs
     previous_outpoint_amount BIGINT,
     PRIMARY KEY (transaction_id, index)
 );
--- Create indexes (optional, if you need to search txs for address)
---CREATE INDEX ON transactions_inputs (previous_outpoint_script);
---CREATE INDEX ON transactions_inputs (block_time DESC);
+-- Create index (optional, if you need to search txs for address)
+--CREATE INDEX ON transactions_inputs (previous_outpoint_script, block_time DESC);
 
 
 CREATE TABLE transactions_outputs
@@ -100,9 +99,8 @@ CREATE TABLE transactions_outputs
     block_time                BIGINT,
     PRIMARY KEY (transaction_id, index)
 );
--- Create indexes (optional, if you need to search txs for address)
---CREATE INDEX ON transactions_outputs (script_public_key);
---CREATE INDEX ON transactions_outputs (block_time DESC);
+-- Create index (optional, if you need to search txs for address)
+--CREATE INDEX ON transactions_outputs (script_public_key, block_time DESC);
 
 
 CREATE TABLE addresses_transactions

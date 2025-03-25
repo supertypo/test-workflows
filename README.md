@@ -194,10 +194,8 @@ Then use the same method to enrich transactions_outputs with block_time from tra
 
 Lastly the appropriate indexes for efficient querying must be created:
 ```sql
-CREATE INDEX ON transactions_inputs (previous_outpoint_script);
-CREATE INDEX ON transactions_inputs (block_time DESC);
-CREATE INDEX ON transactions_outputs (script_public_key);
-CREATE INDEX ON transactions_outputs (block_time DESC);
+CREATE INDEX ON transactions_inputs (previous_outpoint_script, block_time DESC);
+CREATE INDEX ON transactions_outputs (script_public_key, block_time DESC);
 ```
 Afterward truncate the addresses_transactions/scripts_transactions table, apply --disable=addresses_transactions_table to the indexer and start it.
 

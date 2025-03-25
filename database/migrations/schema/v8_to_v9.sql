@@ -10,10 +10,8 @@ ALTER TABLE transactions_inputs ADD COLUMN previous_outpoint_script BYTEA;
 ALTER TABLE transactions_inputs ADD COLUMN previous_outpoint_amount BIGINT;
 
 -- Create indexes (optional, to look up addresses without addresses_transactions)
---CREATE INDEX ON transactions_inputs (previous_outpoint_script);
---CREATE INDEX ON transactions_inputs (block_time DESC);
---CREATE INDEX ON transactions_outputs (script_public_key);
---CREATE INDEX ON transactions_outputs (block_time DESC);
+--CREATE INDEX ON transactions_inputs (previous_outpoint_script, block_time DESC);
+--CREATE INDEX ON transactions_outputs (script_public_key, block_time DESC);
 
 -- Update schema_version
 UPDATE vars SET value = '9' WHERE key = 'schema_version';
