@@ -20,6 +20,7 @@ panic = "abort"
 [workspace.package]
 rust-version = "1.83.0"
 authors = ["suprtypo@pm.me"]
+license = "MIT"
 license-file = "LICENSE"
 edition = "2021" # Rust edition
 
@@ -28,9 +29,9 @@ simply-kaspa-cli = { path = "cli" }
 simply-kaspa-database = { path = "database" }
 simply-kaspa-mapping = { path = "mapping" }
 simply-kaspa-kaspad = { path = "kaspad" }
-kaspa-wrpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.17.2" }
-kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.17.2" }
-kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v0.17.2" }
+kaspa-wrpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.0.0" }
+kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.0.0" }
+kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.0.0" }
 tokio = { version = "1.43.0", features = ["default", "signal"] }
 futures-util = { version = "0.3.31", default-features = false }
 sqlx = { version = "0.8.3", features = ["runtime-tokio", "runtime-tokio-native-tls", "postgres"] }
