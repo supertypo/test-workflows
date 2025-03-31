@@ -56,7 +56,7 @@ pub async fn connect_client(network_id: NetworkId, rpc_url: Option<String>) -> R
     if network_id != server_info.network_id {
         panic!("Network mismatch, expected '{}', actual '{}'", network_id, connected_network);
     } else if !server_info.is_synced
-        || server_info.network_id.network_type == RpcNetworkType::Mainnet && server_info.virtual_daa_score < 98218415
+        || server_info.network_id.network_type == RpcNetworkType::Mainnet && server_info.virtual_daa_score < 107107107
     {
         let err_msg = format!("Kaspad {} is NOT synced", server_info.server_version);
         warn!("{err_msg}");

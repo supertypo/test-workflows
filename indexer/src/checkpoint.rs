@@ -47,6 +47,9 @@ pub async fn process_checkpoints(
     let mut checkpoint_last_warned = Instant::now();
     let mut checkpoint_candidate = None;
 
+    let mut last_block_blue_score = 0;
+    let mut last_tx_blue_score = 0;
+
     let mut blocks_processed: HashSet<SqlHash> = HashSet::new();
     let mut txs_processed: HashSet<SqlHash> = HashSet::new();
 
@@ -57,6 +60,7 @@ pub async fn process_checkpoints(
         if let Some(checkpoint_block) = checkpoint_queue.pop() {
             match checkpoint_block.origin {
                 CheckpointOrigin::Blocks => {
+                    last_block_blue_score = checkpoint_block.blue_score;
                     if disable_virtual_chain_processing {
                         if checkpoint_candidate.is_none()
                             && Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_SAVE_INTERVAL
@@ -72,7 +76,8 @@ pub async fn process_checkpoints(
                     }
                 }
                 CheckpointOrigin::Transactions => {
-                    txs_processed.insert(checkpoint_block.hash);
+                    last_tx_blue_score = checkpoint_block.blue_score;
+                    txs_processed.insert(checkpoint_block.hash.clone());
                 }
                 CheckpointOrigin::Vcp => {
                     if checkpoint_candidate.is_none()
@@ -91,12 +96,12 @@ pub async fn process_checkpoints(
                 let checkpoint_string = hex::encode(checkpoint.hash.as_bytes());
                 if !cp_ok_blocks && blocks_processed.contains(&checkpoint.hash) {
                     cp_ok_blocks = true;
-                    blocks_processed = HashSet::new();
                 }
+                blocks_processed = HashSet::new();
                 if !cp_ok_txs && (disable_transaction_processing || txs_processed.contains(&checkpoint.hash)) {
                     cp_ok_txs = true;
-                    txs_processed = HashSet::new();
                 }
+                txs_processed = HashSet::new();
                 if cp_ok_blocks && cp_ok_txs {
                     info!("Saving block_checkpoint {}", checkpoint_string);
                     save_checkpoint(&checkpoint_string, &database).await.unwrap();
@@ -109,11 +114,10 @@ pub async fn process_checkpoints(
                     warn!("Still unable to save block_checkpoint {}", checkpoint_string);
                     checkpoint_last_warned = Instant::now();
                     checkpoint_candidate = Some(checkpoint);
-                } else if Instant::now().duration_since(checkpoint_last_saved).as_secs() > CHECKPOINT_FAILED_TIMEOUT {
-                    // Failsafe in the unlikely scenario that vcp is more than CHECKPOINT_SAVE_INTERVAL behind blocks/txs processing
-                    // or, in the case of vcp disabled, that blocks is equally far behind tx processing.
-                    // Selecting a new candidate without clearing the processed hashmaps should allow it to eventually succeed,
-                    // although it will be at the expense of increased memory use.
+                } else if last_block_blue_score > checkpoint.blue_score + CHECKPOINT_FAILED_TIMEOUT * settings.net_bps as u64
+                    && (disable_transaction_processing
+                        || last_tx_blue_score > checkpoint.blue_score + CHECKPOINT_FAILED_TIMEOUT * settings.net_bps as u64)
+                {
                     error!("Failed to synchronize on block_checkpoint {}", checkpoint_string);
                     checkpoint_last_saved = Instant::now(); // Need to reset this to avoid a loop
                     checkpoint_candidate = None;

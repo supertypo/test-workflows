@@ -87,7 +87,13 @@ async fn start_processing(
     }
     let block_dag_info = block_dag_info.unwrap();
     let net_bps = match block_dag_info.network {
-        NetworkId { network_type: NetworkType::Mainnet, suffix: None } => 1,
+        NetworkId { network_type: NetworkType::Mainnet, suffix: None } => {
+            if block_dag_info.virtual_daa_score >= 110165000 {
+                10
+            } else {
+                1
+            }
+        }
         _ => 10,
     };
     let net_tps_max = net_bps as u16 * 300;

@@ -47,6 +47,7 @@ pub struct KaspaBlocksFetcher {
     lag_count: i32,
     tip_hashes: HashSet<KaspaHash>,
     block_cache: Cache<KaspaHash, ()>,
+    net_bps: u8,
 }
 
 impl KaspaBlocksFetcher {
@@ -77,6 +78,7 @@ impl KaspaBlocksFetcher {
             lag_count: 0,
             tip_hashes: HashSet::new(),
             block_cache,
+            net_bps: settings.net_bps,
         }
     }
 
@@ -111,6 +113,7 @@ impl KaspaBlocksFetcher {
                         let mut txs_len = 0;
                         if blocks_len > 1 {
                             let last_block = blocks.last().unwrap().clone();
+                            crescendo(self.net_bps, last_block.header.daa_score);
                             txs_len = self.handle_blocks(start_time, blocks).await;
 
                             let mut metrics = self.metrics.write().await;
@@ -221,5 +224,25 @@ impl KaspaBlocksFetcher {
             }
         }
         0
+    }
+}
+
+fn crescendo(net_bps: u8, daa_score: u64) {
+    if net_bps == 1 {
+        let crescendo_countdown = 110165000 - daa_score as i64;
+        if crescendo_countdown <= 0 {
+            panic!("\x1b[31mCrescendo activated, shutting down for automatic bps adjustment...\x1b[0m")
+        } else if crescendo_countdown <= 600 {
+            warn!(
+                "\x1b[33mCrescendo activation in \x1b[31m~{crescendo_countdown}\x1b[33m seconds. \
+            On activation indexer will shutdown for automatic bps adjustment\x1b[0m"
+            )
+        } else if crescendo_countdown <= 86400 && crescendo_countdown % 10 == 0 {
+            warn!(
+                "\x1b[33mCrescendo activation in \x1b[31m{}\x1b[33m minutes. \
+            On activation indexer will shutdown for automatic bps adjustment\x1b[0m",
+                crescendo_countdown / 60
+            )
+        }
     }
 }
