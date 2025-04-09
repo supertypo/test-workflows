@@ -110,7 +110,7 @@ CREATE TABLE addresses_transactions
     block_time     BIGINT,
     PRIMARY KEY (address, transaction_id)
 );
-CREATE INDEX ON addresses_transactions (block_time DESC);
+CREATE INDEX ON addresses_transactions (address, block_time DESC);
 
 
 CREATE TABLE scripts_transactions
@@ -120,4 +120,4 @@ CREATE TABLE scripts_transactions
     block_time        BIGINT,
     PRIMARY KEY (script_public_key, transaction_id)
 );
-CREATE INDEX ON scripts_transactions (block_time DESC);
+CREATE INDEX ON scripts_transactions (script_public_key, block_time DESC);
