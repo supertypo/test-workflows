@@ -45,8 +45,8 @@ pub const INFO_TAG: &str = "info";
 struct ApiDoc;
 
 pub struct WebServer {
-    run: Arc<AtomicBool>,
     settings: Settings,
+    run: Arc<AtomicBool>,
     metrics: Arc<RwLock<Metrics>>,
     kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
     database_client: KaspaDbClient,
@@ -55,13 +55,13 @@ pub struct WebServer {
 
 impl WebServer {
     pub fn new(
-        run: Arc<AtomicBool>,
         settings: Settings,
+        run: Arc<AtomicBool>,
         metrics: Arc<RwLock<Metrics>>,
         kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
         database_client: KaspaDbClient,
     ) -> Self {
-        WebServer { run, settings, metrics, kaspad_pool, database_client, system: Arc::new(RwLock::new(System::new())) }
+        WebServer { settings, run, metrics, kaspad_pool, database_client, system: Arc::new(RwLock::new(System::new())) }
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), Error> {

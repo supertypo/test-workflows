@@ -33,7 +33,7 @@ pub async fn process_blocks(
     let batch_scale = settings.cli_args.batch_scale;
     let batch_size = (800f64 * batch_scale) as usize;
     let disable_virtual_chain_processing = settings.cli_args.is_disabled(CliDisable::VirtualChainProcessing);
-    let disable_vcp_wait_for_sync = settings.cli_args.is_disabled(CliDisable::VcpWaitForSync);
+    let disable_vcp_wait_for_sync = settings.disable_vcp_wait_for_sync;
     let disable_blocks = settings.cli_args.is_disabled(CliDisable::BlocksTable);
     let disable_block_relations = settings.cli_args.is_disabled(CliDisable::BlockParentTable);
     let mut vcp_started = false;

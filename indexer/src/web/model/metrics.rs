@@ -124,6 +124,7 @@ impl MetricsCheckpoint {
 #[derive(ToSchema, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetricsComponent {
+    pub utxo_importer: MetricsComponentUtxoSetImporter,
     pub block_fetcher: MetricsComponentBlockFetcher,
     pub block_processor: MetricsComponentBlockProcessor,
     pub transaction_processor: MetricsComponentTransactionProcessor,
@@ -139,11 +140,34 @@ impl Default for MetricsComponent {
 impl MetricsComponent {
     pub fn new() -> Self {
         Self {
+            utxo_importer: MetricsComponentUtxoSetImporter::new(),
             block_fetcher: MetricsComponentBlockFetcher::new(),
             block_processor: MetricsComponentBlockProcessor::new(),
             transaction_processor: MetricsComponentTransactionProcessor::new(),
             virtual_chain_processor: MetricsComponentVirtualChainProcessor::new(),
         }
+    }
+}
+
+#[derive(ToSchema, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsComponentUtxoSetImporter {
+    pub enabled: bool,
+    pub attempts: Option<u32>,
+    pub completed: Option<bool>,
+    pub utxo_chunks: Option<u32>,
+    pub outputs_committed: Option<u64>,
+}
+
+impl Default for MetricsComponentUtxoSetImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MetricsComponentUtxoSetImporter {
+    pub fn new() -> Self {
+        Self { enabled: false, attempts: None, completed: None, utxo_chunks: None, outputs_committed: None }
     }
 }
 

@@ -6,7 +6,7 @@ use kaspa_hashes::Hash as KaspaHash;
 use kaspa_rpc_core::api::rpc::RpcApi;
 use kaspa_wrpc_client::prelude::{NetworkId, NetworkType};
 use log::{info, trace, warn};
-use simply_kaspa_cli::cli_args::{CliArgs, CliDisable};
+use simply_kaspa_cli::cli_args::{CliArgs, CliDisable, CliEnable};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_indexer::blocks::fetch_blocks::KaspaBlocksFetcher;
 use simply_kaspa_indexer::blocks::process_blocks::process_blocks;
@@ -14,6 +14,7 @@ use simply_kaspa_indexer::checkpoint::{process_checkpoints, CheckpointBlock, Che
 use simply_kaspa_indexer::settings::Settings;
 use simply_kaspa_indexer::signal::signal_handler::notify_on_signals;
 use simply_kaspa_indexer::transactions::process_transactions::process_transactions;
+use simply_kaspa_indexer::utxo_import::utxo_set_importer::UtxoSetImporter;
 use simply_kaspa_indexer::vars::load_block_checkpoint;
 use simply_kaspa_indexer::virtual_chain::process_virtual_chain::process_virtual_chain;
 use simply_kaspa_indexer::web::model::metrics::Metrics;
@@ -60,14 +61,10 @@ async fn main() {
     }
     database.create_schema(cli_args.upgrade_db).await.expect("Unable to create schema");
 
-    start_processing(cli_args, kaspad_pool, database).await.expect("Unreachable");
+    start_processing(cli_args, kaspad_pool, database).await;
 }
 
-async fn start_processing(
-    cli_args: CliArgs,
-    kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>,
-    database: KaspaDbClient,
-) -> Result<(), ()> {
+async fn start_processing(cli_args: CliArgs, kaspad_pool: Pool<KaspadManager, Object<KaspadManager>>, database: KaspaDbClient) {
     let run = Arc::new(AtomicBool::new(true));
     task::spawn(notify_on_signals(run.clone()));
 
@@ -82,7 +79,7 @@ async fn start_processing(
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
         if !run.load(Ordering::Relaxed) {
-            return Ok(());
+            return;
         }
     }
     let block_dag_info = block_dag_info.unwrap();
@@ -99,6 +96,7 @@ async fn start_processing(
     let net_tps_max = net_bps as u16 * 300;
     info!("Assuming {} block(s) per second for cache sizes", net_bps);
 
+    let mut utxo_set_import = cli_args.is_enabled(CliEnable::UtxoImport);
     let checkpoint: KaspaHash;
     if let Some(ignore_checkpoint) = cli_args.ignore_checkpoint.clone() {
         warn!("Checkpoint ignored due to user request (-i). This might lead to inconsistencies.");
@@ -116,8 +114,14 @@ async fn start_processing(
         checkpoint = KaspaHash::from_str(saved_block_checkpoint.as_str()).expect("Saved checkpoint is invalid!");
         info!("Starting from checkpoint {}", checkpoint);
     } else {
-        checkpoint = *block_dag_info.virtual_parent_hashes.first().expect("Virtual parent not found");
-        warn!("Checkpoint not found, starting from virtual_parent {}", checkpoint);
+        if cli_args.is_disabled(CliDisable::InitialUtxoImport) {
+            checkpoint = *block_dag_info.virtual_parent_hashes.first().expect("Virtual parent not found");
+            warn!("Checkpoint not found, starting from virtual_parent {}", checkpoint);
+        } else {
+            utxo_set_import = true;
+            checkpoint = block_dag_info.pruning_point_hash;
+            warn!("Checkpoint not found, starting from pruning_point {}", checkpoint);
+        }
     }
     if let Some(disable) = &cli_args.disable {
         info!("Disable functionality is set, the following functionality will be disabled: {:?}", disable);
@@ -136,6 +140,8 @@ async fn start_processing(
         Err(_) => None,
     };
 
+    let disable_vcp_wait_for_sync = cli_args.is_disabled(CliDisable::VcpWaitForSync) || utxo_set_import;
+
     let queue_capacity = (cli_args.batch_scale * 1000f64) as usize;
     let blocks_queue = Arc::new(ArrayQueue::new(queue_capacity));
     let txs_queue = Arc::new(ArrayQueue::new(queue_capacity));
@@ -143,7 +149,7 @@ async fn start_processing(
 
     let mapper = KaspaDbMapper::new(cli_args.clone());
 
-    let settings = Settings { cli_args: cli_args.clone(), net_bps, net_tps_max, checkpoint };
+    let settings = Settings { cli_args: cli_args.clone(), net_bps, net_tps_max, checkpoint, disable_vcp_wait_for_sync };
     let start_vcp = Arc::new(AtomicBool::new(false));
 
     let mut metrics = Metrics::new(env!("CARGO_PKG_NAME").to_string(), cli_args.version(), cli_args.commit_id());
@@ -160,6 +166,19 @@ async fn start_processing(
     metrics.components.virtual_chain_processor.only_blocks = settings.cli_args.is_disabled(CliDisable::TransactionAcceptance);
     let metrics = Arc::new(RwLock::new(metrics));
 
+    let webserver = Arc::new(WebServer::new(settings.clone(), run.clone(), metrics.clone(), kaspad_pool.clone(), database.clone()));
+    let webserver_task = task::spawn(async move { webserver.run().await.unwrap() });
+
+    if utxo_set_import {
+        let importer =
+            UtxoSetImporter::new(cli_args.clone(), run.clone(), metrics.clone(), block_dag_info.pruning_point_hash, database.clone());
+        if !importer.start().await {
+            warn!("UTXO set import aborted");
+            webserver_task.await.unwrap();
+            return;
+        }
+    }
+
     let mut block_fetcher = KaspaBlocksFetcher::new(
         settings.clone(),
         run.clone(),
@@ -170,6 +189,7 @@ async fn start_processing(
     );
 
     let mut tasks = vec![
+        webserver_task,
         task::spawn(async move { block_fetcher.start().await }),
         task::spawn(process_blocks(
             settings.clone(),
@@ -205,9 +225,5 @@ async fn start_processing(
             database.clone(),
         )))
     }
-    tasks.push(task::spawn(async move {
-        Arc::new(WebServer::new(run, settings, metrics, kaspad_pool, database)).run().await.unwrap();
-    }));
     try_join_all(tasks).await.unwrap();
-    Ok(())
 }
