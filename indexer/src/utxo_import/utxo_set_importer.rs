@@ -44,6 +44,7 @@ pub struct UtxoSetImporter {
     include_amount: bool,
     include_script_public_key: bool,
     include_script_public_key_address: bool,
+    include_block_time: bool,
 }
 
 impl UtxoSetImporter {
@@ -59,6 +60,7 @@ impl UtxoSetImporter {
         let include_amount = !cli_args.is_excluded(CliField::TxOutAmount);
         let include_script_public_key = !cli_args.is_excluded(CliField::TxOutScriptPublicKey);
         let include_script_public_key_address = !cli_args.is_excluded(CliField::TxOutScriptPublicKeyAddress);
+        let include_block_time = !cli_args.is_excluded(CliField::TxOutBlockTime);
         UtxoSetImporter {
             cli_args,
             run,
@@ -70,6 +72,7 @@ impl UtxoSetImporter {
             include_amount,
             include_script_public_key,
             include_script_public_key_address,
+            include_block_time,
         }
     }
 
@@ -89,11 +92,7 @@ impl UtxoSetImporter {
                     if let Some(rpc_url) = &self.cli_args.rpc_url {
                         Some(format!("{}:{}", Url::parse(rpc_url).unwrap().host().unwrap().to_string(), params.default_p2p_port()))
                     } else {
-                        Some(format!(
-                            "{}:{}",
-                            MAINNET_PARAMS.dns_seeders.choose(&mut rng()).unwrap().to_string(),
-                            params.default_p2p_port()
-                        ))
+                        Some(format!("{}:{}", params.dns_seeders.choose(&mut rng()).unwrap().to_string(), params.default_p2p_port()))
                     }
                 } else {
                     None
@@ -141,7 +140,8 @@ impl UtxoSetImporter {
         mut receiver: Receiver<KaspadMessage>,
     ) -> Result<(), ProtocolError> {
         let mut outputs_committed_count = 0;
-        let mut utxo_set_chunk_count = 0;
+        let mut utxo_chunk_count = 0;
+        let mut utxos_count = 0;
         while self.run.load(Ordering::Relaxed) {
             match timeout(Duration::from_secs(IBD_TIMEOUT_SECONDS), receiver.recv()).await {
                 Ok(op) => match op {
@@ -150,6 +150,7 @@ impl UtxoSetImporter {
                             debug!("P2P: ua: {}, proto: {}, network: {}", msg.user_agent, msg.protocol_version, msg.network);
                         }
                         Some(Payload::RequestAddresses(_)) => {
+                            debug!("Got addresses request, responding with empty list");
                             adaptor
                                 .send(peer_key, make_message!(Payload::Addresses, AddressesMessage { address_list: vec![] }))
                                 .await?;
@@ -165,12 +166,13 @@ impl UtxoSetImporter {
                                 .await?;
                         }
                         Some(Payload::PruningPointUtxoSetChunk(msg)) => {
-                            utxo_set_chunk_count += 1;
+                            utxo_chunk_count += 1;
+                            utxos_count += msg.outpoint_and_utxo_entry_pairs.len();
                             outputs_committed_count += self.persist_utxos(msg.outpoint_and_utxo_entry_pairs).await;
-                            if utxo_set_chunk_count % IBD_BATCH_SIZE == 0 {
+                            if utxo_chunk_count % IBD_BATCH_SIZE == 0 {
                                 info!(
-                                    "Imported {} UTXO chunks, committed {} new transactions_outputs",
-                                    utxo_set_chunk_count, outputs_committed_count
+                                    "Imported {} UTXO chunks ({} total), committed {} new transactions_outputs",
+                                    utxo_chunk_count, utxos_count, outputs_committed_count
                                 );
                                 adaptor
                                     .send(
@@ -182,7 +184,7 @@ impl UtxoSetImporter {
                                     )
                                     .await?;
                                 let mut metrics = self.metrics.write().await;
-                                metrics.components.utxo_importer.utxo_chunks = Some(utxo_set_chunk_count);
+                                metrics.components.utxo_importer.utxo_chunks = Some(utxo_chunk_count);
                                 metrics.components.utxo_importer.outputs_committed = Some(outputs_committed_count);
                             }
                         }
@@ -229,7 +231,7 @@ impl UtxoSetImporter {
                         .include_script_public_key_address
                         .then(|| extract_script_pub_key_address(&script_public_key, self.prefix).map(|a| a.address_to_string()).ok())
                         .flatten(),
-                    block_time: None,
+                    block_time: self.include_block_time.then_some(0),
                 }
             })
             .collect();
