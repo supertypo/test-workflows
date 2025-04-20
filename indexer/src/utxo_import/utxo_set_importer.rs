@@ -17,7 +17,7 @@ use kaspa_wrpc_client::prelude::{NetworkId, NetworkType};
 use log::{debug, error, info, trace, warn};
 use rand::prelude::IndexedRandom;
 use rand::rng;
-use simply_kaspa_cli::cli_args::CliArgs;
+use simply_kaspa_cli::cli_args::{CliArgs, CliField};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_database::models::transaction_output::TransactionOutput;
 use std::str::FromStr;
@@ -41,6 +41,9 @@ pub struct UtxoSetImporter {
     database: KaspaDbClient,
     network_id: NetworkId,
     prefix: Prefix,
+    include_amount: bool,
+    include_script_public_key: bool,
+    include_script_public_key_address: bool,
 }
 
 impl UtxoSetImporter {
@@ -53,7 +56,21 @@ impl UtxoSetImporter {
     ) -> UtxoSetImporter {
         let network_id = NetworkId::from_str(&cli_args.network).unwrap();
         let prefix = Prefix::from(network_id);
-        UtxoSetImporter { cli_args, run, metrics, pruning_point_hash, database, network_id, prefix }
+        let include_amount = !cli_args.is_excluded(CliField::TxOutAmount);
+        let include_script_public_key = !cli_args.is_excluded(CliField::TxOutScriptPublicKey);
+        let include_script_public_key_address = !cli_args.is_excluded(CliField::TxOutScriptPublicKeyAddress);
+        UtxoSetImporter {
+            cli_args,
+            run,
+            metrics,
+            pruning_point_hash,
+            database,
+            network_id,
+            prefix,
+            include_amount,
+            include_script_public_key,
+            include_script_public_key_address,
+        }
     }
 
     pub async fn start(&self) -> bool {
@@ -206,11 +223,12 @@ impl UtxoSetImporter {
                 TransactionOutput {
                     transaction_id: KaspaHash::from_slice(outpoint.transaction_id.unwrap().bytes.as_slice()).into(),
                     index: outpoint.index.to_i16().unwrap(),
-                    amount: Some(utxo_entry.amount as i64),
-                    script_public_key: Some(script_public_key.script().to_vec()),
-                    script_public_key_address: extract_script_pub_key_address(&script_public_key, self.prefix)
-                        .ok()
-                        .map(|a| a.address_to_string()),
+                    amount: self.include_amount.then_some(utxo_entry.amount as i64),
+                    script_public_key: self.include_script_public_key.then_some(script_public_key.script().to_vec()),
+                    script_public_key_address: self
+                        .include_script_public_key_address
+                        .then(|| extract_script_pub_key_address(&script_public_key, self.prefix).map(|a| a.address_to_string()).ok())
+                        .flatten(),
                     block_time: None,
                 }
             })
