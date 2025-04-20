@@ -6,6 +6,8 @@ use utoipa::ToSchema;
 #[clap(rename_all = "snake_case")]
 pub enum CliEnable {
     None,
+    /// Enables dynamic VCP tip distance, reduces write load due to reorgs
+    DynamicVcpTipDistance,
     /// Enables resolving transactions_inputs previous_outpoint
     TransactionsInputsResolve,
 }

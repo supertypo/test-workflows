@@ -4,18 +4,18 @@ use crate::virtual_chain::accept_transactions::accept_transactions;
 use crate::virtual_chain::add_chain_blocks::add_chain_blocks;
 use crate::virtual_chain::remove_chain_blocks::remove_chain_blocks;
 use crate::web::model::metrics::Metrics;
+use chrono::DateTime;
 use crossbeam_queue::ArrayQueue;
 use deadpool::managed::{Object, Pool};
 use kaspa_rpc_core::api::rpc::RpcApi;
 use log::{debug, error, info, warn};
-use simply_kaspa_cli::cli_args::CliDisable;
+use simply_kaspa_cli::cli_args::{CliDisable, CliEnable};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use chrono::DateTime;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
@@ -38,7 +38,8 @@ pub async fn process_virtual_chain(
     let start_time = Instant::now();
     let mut synced = false;
 
-    let mut tip_distance = 10;
+    let dynamic_tip_distance = settings.cli_args.is_enabled(CliEnable::DynamicVcpTipDistance);
+    let mut tip_distance = if dynamic_tip_distance { 10 } else { 0 };
     let mut tip_distance_timestamp = 0;
     let mut tip_distance_history = VecDeque::new();
     let tip_distance_window = settings.cli_args.vcp_window.saturating_div(settings.cli_args.vcp_interval as u16).max(1) as usize;
@@ -90,31 +91,37 @@ pub async fn process_virtual_chain(
                                     chrono::DateTime::from_timestamp_millis(checkpoint_block.timestamp as i64 / 1000 * 1000).unwrap()
                                 );
                             }
-                            if tip_distance_history.len() == tip_distance_window {
-                                tip_distance_history.pop_back();
-                            }
-                            tip_distance_history.push_front(rows_removed > 0);
-                            let reorgs_count = tip_distance_history.iter().filter(|&&x| x).count();
-                            if reorgs_count >= 3 {
-                                tip_distance += 1;
-                                tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-                                tip_distance_history.pop_front();
-                                tip_distance_history.push_front(false);
-                                debug!("Increased vcp tip distance to {tip_distance}");
-                            } else if synced && reorgs_count == 0 && tip_distance > 0 {
-                                tip_distance -= 1;
-                                tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
+                            if dynamic_tip_distance {
                                 if tip_distance_history.len() == tip_distance_window {
-                                    tip_distance_history.pop_front();
-                                    tip_distance_history.push_front(true);
+                                    tip_distance_history.pop_back();
                                 }
-                                debug!("Decreased vcp tip distance to {tip_distance}");
+                                tip_distance_history.push_front(rows_removed > 0);
+                                let reorgs_count = tip_distance_history.iter().filter(|&&x| x).count();
+                                if reorgs_count >= 3 {
+                                    tip_distance += 1;
+                                    tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                                    tip_distance_history.pop_front();
+                                    tip_distance_history.push_front(false);
+                                    debug!("Increased vcp tip distance to {tip_distance}");
+                                } else if synced && reorgs_count == 0 && tip_distance > 0 {
+                                    tip_distance -= 1;
+                                    tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                                    if tip_distance_history.len() == tip_distance_window {
+                                        tip_distance_history.pop_front();
+                                        tip_distance_history.push_front(true);
+                                    }
+                                    debug!("Decreased vcp tip distance to {tip_distance}");
+                                }
                             }
                             let mut metrics = metrics.write().await;
                             metrics.components.virtual_chain_processor.last_block = Some(checkpoint_block.clone().into());
                             metrics.components.virtual_chain_processor.tip_distance = Some(tip_distance as u64);
-                            metrics.components.virtual_chain_processor.tip_distance_timestamp = Some(tip_distance_timestamp as u64);
-                            metrics.components.virtual_chain_processor.tip_distance_date_time = DateTime::from_timestamp_millis(tip_distance_timestamp as i64);
+                            metrics.components.virtual_chain_processor.tip_distance_timestamp =
+                                dynamic_tip_distance.then_some(tip_distance_timestamp as u64);
+                            metrics.components.virtual_chain_processor.tip_distance_date_time = dynamic_tip_distance
+                                .then_some(DateTime::from_timestamp_millis(tip_distance_timestamp as i64))
+                                .flatten();
                             drop(metrics);
 
                             while checkpoint_queue.push(checkpoint_block.clone()).is_err() {
