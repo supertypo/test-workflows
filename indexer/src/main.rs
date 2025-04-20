@@ -96,7 +96,7 @@ async fn start_processing(cli_args: CliArgs, kaspad_pool: Pool<KaspadManager, Ob
     let net_tps_max = net_bps as u16 * 300;
     info!("Assuming {} block(s) per second for cache sizes", net_bps);
 
-    let mut utxo_set_import = cli_args.is_enabled(CliEnable::UtxoImport);
+    let mut utxo_set_import = cli_args.is_enabled(CliEnable::ForceUtxoImport);
     let checkpoint: KaspaHash;
     if let Some(ignore_checkpoint) = cli_args.ignore_checkpoint.clone() {
         warn!("Checkpoint ignored due to user request (-i). This might lead to inconsistencies.");

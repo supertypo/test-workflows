@@ -8,8 +8,8 @@ pub enum CliEnable {
     None,
     /// Enables resolving transactions_inputs previous_outpoint
     TransactionsInputsResolve,
-    /// Enables (pruning point) utxo set import on startup (default is only on empty db)
-    UtxoImport,
+    /// Forces (pruning point) utxo set import on startup (otherwise only on empty db)
+    ForceUtxoImport,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, ToSchema, Serialize, Deserialize)]
