@@ -91,11 +91,11 @@ async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthInd
 
     if metrics.components.utxo_importer.enabled {
         let completed = metrics.components.utxo_importer.completed.unwrap_or(false);
-        let chunks = metrics.components.utxo_importer.utxo_chunks.unwrap_or(0);
+        let utxos = metrics.components.utxo_importer.utxos_imported.unwrap_or(0);
         health_details.push(HealthIndexerDetails {
             name: "component.utxo_importer".to_string(),
             status: if completed { HealthStatus::UP } else { HealthStatus::WARN },
-            reason: if completed { "Completed".to_string() } else { format!("In progress ({chunks} chunks)") },
+            reason: format!("{} ({utxos} utxos imported)", if completed { "Completed" } else { "In progress" }),
         });
     } else {
         health_details.push(HealthIndexerDetails {

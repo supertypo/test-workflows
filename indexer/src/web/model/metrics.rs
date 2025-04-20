@@ -155,7 +155,7 @@ pub struct MetricsComponentUtxoSetImporter {
     pub enabled: bool,
     pub attempts: Option<u32>,
     pub completed: Option<bool>,
-    pub utxo_chunks: Option<u32>,
+    pub utxos_imported: Option<u64>,
     pub outputs_committed: Option<u64>,
 }
 
@@ -167,7 +167,7 @@ impl Default for MetricsComponentUtxoSetImporter {
 
 impl MetricsComponentUtxoSetImporter {
     pub fn new() -> Self {
-        Self { enabled: false, attempts: None, completed: None, utxo_chunks: None, outputs_committed: None }
+        Self { enabled: false, attempts: None, completed: None, utxos_imported: None, outputs_committed: None }
     }
 }
 

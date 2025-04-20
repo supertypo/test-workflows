@@ -141,7 +141,7 @@ impl UtxoSetImporter {
     ) -> Result<(), ProtocolError> {
         let mut outputs_committed_count = 0;
         let mut utxo_chunk_count = 0;
-        let mut utxos_count = 0;
+        let mut utxos_count: u64 = 0;
         while self.run.load(Ordering::Relaxed) {
             match timeout(Duration::from_secs(IBD_TIMEOUT_SECONDS), receiver.recv()).await {
                 Ok(op) => match op {
@@ -167,7 +167,7 @@ impl UtxoSetImporter {
                         }
                         Some(Payload::PruningPointUtxoSetChunk(msg)) => {
                             utxo_chunk_count += 1;
-                            utxos_count += msg.outpoint_and_utxo_entry_pairs.len();
+                            utxos_count += msg.outpoint_and_utxo_entry_pairs.len() as u64;
                             outputs_committed_count += self.persist_utxos(msg.outpoint_and_utxo_entry_pairs).await;
                             if utxo_chunk_count % IBD_BATCH_SIZE == 0 {
                                 info!(
@@ -184,12 +184,15 @@ impl UtxoSetImporter {
                                     )
                                     .await?;
                                 let mut metrics = self.metrics.write().await;
-                                metrics.components.utxo_importer.utxo_chunks = Some(utxo_chunk_count);
+                                metrics.components.utxo_importer.utxos_imported = Some(utxos_count);
                                 metrics.components.utxo_importer.outputs_committed = Some(outputs_committed_count);
                             }
                         }
                         Some(Payload::DonePruningPointUtxoSetChunks(_)) => {
                             info!("Pruning point UTXO set import completed successfully!");
+                            let mut metrics = self.metrics.write().await;
+                            metrics.components.utxo_importer.utxos_imported = Some(utxos_count);
+                            metrics.components.utxo_importer.outputs_committed = Some(outputs_committed_count);
                             return Ok(());
                         }
                         Some(Payload::UnexpectedPruningPoint(_)) => panic!("Invalid pruning point"),
