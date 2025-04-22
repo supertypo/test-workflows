@@ -159,7 +159,8 @@ async fn start_processing(cli_args: CliArgs, kaspad_pool: Pool<KaspadManager, Ob
 
     let mut metrics = Metrics::new(env!("CARGO_PKG_NAME").to_string(), cli_args.version(), cli_args.commit_id());
     let mut settings_clone = settings.clone();
-    settings_clone.cli_args.rpc_url = Some("**hidden**".to_string());
+    settings_clone.cli_args.rpc_url = settings_clone.cli_args.rpc_url.map(|_| "**hidden**".to_string());
+    settings_clone.cli_args.p2p_url = settings_clone.cli_args.p2p_url.map(|_| "**hidden**".to_string());
     settings_clone.cli_args.database_url = "**hidden**".to_string();
     metrics.settings = Some(settings_clone);
     metrics.queues.blocks_capacity = blocks_queue.capacity() as u64;
