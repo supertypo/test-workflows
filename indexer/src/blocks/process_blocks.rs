@@ -36,6 +36,7 @@ pub async fn process_blocks(
     let disable_vcp_wait_for_sync = settings.disable_vcp_wait_for_sync;
     let disable_blocks = settings.cli_args.is_disabled(CliDisable::BlocksTable);
     let disable_block_relations = settings.cli_args.is_disabled(CliDisable::BlockParentTable);
+    let mut first_block = true;
     let mut vcp_started = false;
     let mut blocks = vec![];
     let mut blocks_parents = vec![];
@@ -78,10 +79,12 @@ pub async fn process_blocks(
                 if !vcp_started && !disable_virtual_chain_processing {
                     let tas_deleted = delete_transaction_acceptances(
                         batch_scale,
-                        checkpoint_blocks.iter().map(|c| c.hash.clone()).collect(),
+                        // Skip deleting acceptance for first block hash, as it's not re-added by vcp:
+                        checkpoint_blocks.iter().skip(first_block as usize).map(|c| c.hash.clone()).collect(),
                         database.clone(),
                     )
                     .await;
+                    first_block = false;
                     if (disable_vcp_wait_for_sync || synced) && tas_deleted == 0 {
                         noop_delete_count += 1;
                     } else {
