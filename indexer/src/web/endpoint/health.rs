@@ -88,6 +88,23 @@ async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthInd
 
     let net_bps = metrics.settings.as_ref().map(|s| s.net_bps as u64).unwrap_or(10);
     health_details.push(indexer_details("checkpoint".to_string(), net_bps, current_daa, 120, 600, metrics.checkpoint.block.as_ref()));
+
+    if metrics.components.utxo_importer.enabled {
+        let completed = metrics.components.utxo_importer.completed.unwrap_or(false);
+        let utxos = metrics.components.utxo_importer.utxos_imported.unwrap_or(0);
+        health_details.push(HealthIndexerDetails {
+            name: "component.utxo_importer".to_string(),
+            status: if completed { HealthStatus::UP } else { HealthStatus::WARN },
+            reason: format!("{} ({utxos} utxos imported)", if completed { "Completed" } else { "In progress" }),
+        });
+    } else {
+        health_details.push(HealthIndexerDetails {
+            name: "component.utxo_importer".to_string(),
+            status: HealthStatus::UP,
+            reason: "Disabled".to_string(),
+        });
+    }
+
     health_details.push(indexer_details(
         "component.block_fetcher".to_string(),
         net_bps,
@@ -96,6 +113,7 @@ async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthInd
         600,
         metrics.components.block_fetcher.last_block.as_ref(),
     ));
+
     health_details.push(indexer_details(
         "component.block_processor".to_string(),
         net_bps,
@@ -104,6 +122,7 @@ async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthInd
         600,
         metrics.components.block_processor.last_block.as_ref(),
     ));
+
     if metrics.components.transaction_processor.enabled {
         health_details.push(indexer_details(
             "component.transaction_processor".to_string(),
@@ -114,6 +133,7 @@ async fn indexer_health(metrics: Metrics, current_daa: Option<u64>) -> HealthInd
             metrics.components.transaction_processor.last_block.as_ref(),
         ));
     }
+
     if metrics.components.virtual_chain_processor.enabled {
         health_details.push(indexer_details(
             "component.virtual_chain_processor".to_string(),

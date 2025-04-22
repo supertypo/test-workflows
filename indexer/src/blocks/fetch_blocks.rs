@@ -171,7 +171,7 @@ impl KaspaBlocksFetcher {
                 );
                 self.synced = true;
             }
-            if block_hash == self.low_hash || self.block_cache.contains_key(&block_hash) {
+            if self.block_cache.contains_key(&block_hash) {
                 trace!("Ignoring known block hash {}", block_hash.to_string());
                 continue;
             }
