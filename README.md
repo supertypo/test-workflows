@@ -8,6 +8,10 @@ This means that databases populated by the lAmeR1/kaspa-db-filler must be migrat
 A schema migration script has been developed and is available [here](https://github.com/supertypo/kaspa-db-filler-migration).  
 A compatible version of the kaspa-rest-server is available [here](https://github.com/kaspa-ng/kaspa-rest-server).
 
+## Binary releases
+For now, binary releases are only available for Docker.  
+Visit https://hub.docker.com/r/supertypo/simply-kaspa-indexer for more information.
+
 ## Important notes
 
 ### Optional tables
