@@ -101,6 +101,7 @@ pub async fn process_virtual_chain(
                                 if reorgs_count >= 3 {
                                     tip_distance += 1;
                                     tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                                    // Increase distance if new reorgs occur within the window:
                                     tip_distance_history.pop_front();
                                     tip_distance_history.push_front(false);
                                     debug!("Increased vcp tip distance to {tip_distance}");
@@ -108,6 +109,7 @@ pub async fn process_virtual_chain(
                                     tip_distance -= 1;
                                     tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
                                     if tip_distance_history.len() == tip_distance_window {
+                                        // Make sure we don't decrease distance again until a complete window has passed:
                                         tip_distance_history.pop_front();
                                         tip_distance_history.push_front(true);
                                     }
