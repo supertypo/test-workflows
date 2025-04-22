@@ -45,7 +45,7 @@ If you have an archival node, you can specify the start-block using the --ignore
 Please make contact with us on the [Kaspa Discord](https://kaspa.org) if you need a pg_dump-file of historical records.
 
 # License
-ISC, which means this software can be freely modified to any specific need and redistributed (under certain terms).  
+MIT, which means this software can be freely modified to any specific need and redistributed (under certain terms).  
 Please be so kind as to contribute back features you think could be beneficial to the general community.
 
 ### Contribute to development
@@ -205,7 +205,10 @@ Usage: simply-kaspa-indexer [OPTIONS]
 
 Options:
   -s, --rpc-url <RPC_URL>
-          The url to a kaspad instance, e.g 'ws://localhost:17110'. Leave empty to use the Kaspa PNN
+          RPC url to a kaspad instance, e.g 'ws://localhost:17110'. Leave empty to use the Kaspa PNN
+
+  -p, --p2p-url <P2P_URL>
+          P2P socket address to a kaspad instance, e.g 'localhost:16111'.
 
   -n, --network <NETWORK>
           The network type and suffix, e.g. 'testnet-11'
@@ -245,6 +248,16 @@ Options:
           
           [default: 60]
 
+      --vcp-window <VCP_WINDOW>
+          Window size for automatic vcp tip distance adjustment (in seconds)
+          
+          [default: 600]
+
+      --vcp-interval <VCP_INTERVAL>
+          Poll interval for vcp (in seconds)
+          
+          [default: 4]
+
   -i, --ignore-checkpoint <IGNORE_CHECKPOINT>
           Ignore checkpoint and start from a specified block, 'p' for pruning point or 'v' for virtual
 
@@ -259,7 +272,9 @@ Options:
 
           Possible values:
           - none
+          - dynamic_vcp_tip_distance:    Enables dynamic VCP tip distance, reduces write load due to reorgs
           - transactions_inputs_resolve: Enables resolving transactions_inputs previous_outpoint
+          - force_utxo_import:           Forces (pruning point) utxo set import on startup (otherwise only on empty db)
 
       --disable <DISABLE>
           Disable specific functionality
@@ -276,6 +291,7 @@ Options:
           - transactions_inputs_table:    Disables the transactions_inputs table
           - transactions_outputs_table:   Disables the transactions_outputs table
           - addresses_transactions_table: Disables the addresses_transactions (or scripts_transactions) table
+          - initial_utxo_import:          Disables initial utxo set import
           - vcp_wait_for_sync:            Start VCP as soon as the filler has passed the previous run. Use with care
 
       --exclude-fields <EXCLUDE_FIELDS>
