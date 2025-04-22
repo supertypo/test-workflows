@@ -170,10 +170,7 @@ impl UtxoSetImporter {
                             utxos_count += msg.outpoint_and_utxo_entry_pairs.len() as u64;
                             outputs_committed_count += self.persist_utxos(msg.outpoint_and_utxo_entry_pairs).await;
                             if utxo_chunk_count % IBD_BATCH_SIZE == 0 {
-                                info!(
-                                    "Imported {} UTXO chunks ({} total), committed {} new transactions_outputs",
-                                    utxo_chunk_count, utxos_count, outputs_committed_count
-                                );
+                                self.print_progress(utxo_chunk_count, utxos_count, outputs_committed_count);
                                 adaptor
                                     .send(
                                         peer_key,
@@ -189,6 +186,7 @@ impl UtxoSetImporter {
                             }
                         }
                         Some(Payload::DonePruningPointUtxoSetChunks(_)) => {
+                            self.print_progress(utxo_chunk_count, utxos_count, outputs_committed_count);
                             info!("Pruning point UTXO set import completed successfully!");
                             let mut metrics = self.metrics.write().await;
                             metrics.components.utxo_importer.utxos_imported = Some(utxos_count);
@@ -239,5 +237,11 @@ impl UtxoSetImporter {
             })
             .collect();
         self.database.insert_transaction_outputs(&transaction_outputs).await.unwrap_or_else(|e| panic!("Insert {key} FAILED: {e}"))
+    }
+
+    fn print_progress(&self, utxo_chunk_count: u32, utxos_count: u64, outputs_committed_count: u64) {
+        info!(
+            "Imported {utxo_chunk_count} UTXO chunks ({utxos_count} total), committed {outputs_committed_count} new transactions_outputs",
+        );
     }
 }
