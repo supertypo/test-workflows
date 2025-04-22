@@ -4,16 +4,18 @@ use crate::virtual_chain::accept_transactions::accept_transactions;
 use crate::virtual_chain::add_chain_blocks::add_chain_blocks;
 use crate::virtual_chain::remove_chain_blocks::remove_chain_blocks;
 use crate::web::model::metrics::Metrics;
+use chrono::DateTime;
 use crossbeam_queue::ArrayQueue;
 use deadpool::managed::{Object, Pool};
 use kaspa_rpc_core::api::rpc::RpcApi;
 use log::{debug, error, info, warn};
-use simply_kaspa_cli::cli_args::CliDisable;
+use simply_kaspa_cli::cli_args::{CliDisable, CliEnable};
 use simply_kaspa_database::client::KaspaDbClient;
 use simply_kaspa_kaspad::pool::manager::KaspadManager;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
@@ -28,15 +30,24 @@ pub async fn process_virtual_chain(
 ) {
     let batch_scale = settings.cli_args.batch_scale;
     let disable_transaction_acceptance = settings.cli_args.is_disabled(CliDisable::TransactionAcceptance);
-    let mut start_hash = settings.checkpoint;
 
+    let poll_interval = Duration::from_secs(settings.cli_args.vcp_interval as u64);
+    let err_delay = Duration::from_secs(5);
+
+    let mut start_hash = settings.checkpoint;
     let start_time = Instant::now();
     let mut synced = false;
+
+    let dynamic_tip_distance = settings.cli_args.is_enabled(CliEnable::DynamicVcpTipDistance);
+    let mut tip_distance = if dynamic_tip_distance { 10 } else { 0 };
+    let mut tip_distance_timestamp = 0;
+    let mut tip_distance_history = VecDeque::new();
+    let tip_distance_window = settings.cli_args.vcp_window.saturating_div(settings.cli_args.vcp_interval as u16).max(1) as usize;
 
     while run.load(Ordering::Relaxed) {
         if !start_vcp.load(Ordering::Relaxed) {
             debug!("Virtual chain processor waiting for start notification");
-            sleep(Duration::from_secs(5)).await;
+            sleep(err_delay).await;
             continue;
         }
         debug!("Getting virtual chain from start_hash {}", start_hash.to_string());
@@ -44,10 +55,14 @@ pub async fn process_virtual_chain(
             Ok(kaspad) => {
                 match kaspad.get_virtual_chain_from_block(start_hash, !disable_transaction_acceptance).await {
                     Ok(res) => {
+                        let start_request_time = Instant::now();
                         let added_blocks_count = res.added_chain_block_hashes.len();
-                        if added_blocks_count > 0 {
+                        if added_blocks_count > tip_distance {
+                            let removed_chain_block_hashes = res.removed_chain_block_hashes.as_slice();
+                            let added_chain_block_hashes = &res.added_chain_block_hashes[..added_blocks_count - tip_distance];
+                            let accepted_transaction_ids = &res.accepted_transaction_ids[..added_blocks_count - tip_distance];
                             let last_accepting_block =
-                                kaspad.get_block(*res.added_chain_block_hashes.last().unwrap(), false).await.unwrap();
+                                kaspad.get_block(*added_chain_block_hashes.last().unwrap(), false).await.unwrap();
                             let checkpoint_block = CheckpointBlock {
                                 origin: CheckpointOrigin::Vcp,
                                 hash: last_accepting_block.header.hash.into(),
@@ -55,26 +70,60 @@ pub async fn process_virtual_chain(
                                 daa_score: last_accepting_block.header.daa_score,
                                 blue_score: last_accepting_block.header.blue_score,
                             };
-                            let rows_removed = remove_chain_blocks(batch_scale, &res.removed_chain_block_hashes, &database).await;
+                            let start_commit_time = Instant::now();
+                            let rows_removed = remove_chain_blocks(batch_scale, removed_chain_block_hashes, &database).await;
                             if !disable_transaction_acceptance {
-                                let rows_added = accept_transactions(batch_scale, &res.accepted_transaction_ids, &database).await;
+                                let rows_added = accept_transactions(batch_scale, accepted_transaction_ids, &database).await;
                                 info!(
-                                    "Committed {} accepted and {} rejected transactions. Last accepted: {}",
+                                    "Committed {} accepted and {} rejected transactions in {}ms. Last accepted: {}",
                                     rows_added,
                                     rows_removed,
+                                    Instant::now().duration_since(start_commit_time).as_millis(),
                                     chrono::DateTime::from_timestamp_millis(checkpoint_block.timestamp as i64 / 1000 * 1000).unwrap()
                                 );
                             } else {
-                                let rows_added = add_chain_blocks(batch_scale, &res.added_chain_block_hashes, &database).await;
+                                let rows_added = add_chain_blocks(batch_scale, added_chain_block_hashes, &database).await;
                                 info!(
-                                    "Committed {} added and {} removed chain blocks. Last added: {}",
+                                    "Committed {} added and {} removed chain blocks in {}ms. Last added: {}",
                                     rows_added,
                                     rows_removed,
+                                    Instant::now().duration_since(start_commit_time).as_millis(),
                                     chrono::DateTime::from_timestamp_millis(checkpoint_block.timestamp as i64 / 1000 * 1000).unwrap()
                                 );
                             }
+
+                            if dynamic_tip_distance {
+                                if tip_distance_history.len() == tip_distance_window {
+                                    tip_distance_history.pop_back();
+                                }
+                                tip_distance_history.push_front(rows_removed > 0);
+                                let reorgs_count = tip_distance_history.iter().filter(|&&x| x).count();
+                                if reorgs_count >= 3 {
+                                    tip_distance += 1;
+                                    tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                                    // Increase distance if new reorgs occur within the window:
+                                    tip_distance_history.pop_front();
+                                    tip_distance_history.push_front(false);
+                                    debug!("Increased vcp tip distance to {tip_distance}");
+                                } else if synced && reorgs_count == 0 && tip_distance > 0 {
+                                    tip_distance -= 1;
+                                    tip_distance_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                                    if tip_distance_history.len() == tip_distance_window {
+                                        // Make sure we don't decrease distance again until a complete window has passed:
+                                        tip_distance_history.pop_front();
+                                        tip_distance_history.push_front(true);
+                                    }
+                                    debug!("Decreased vcp tip distance to {tip_distance}");
+                                }
+                            }
                             let mut metrics = metrics.write().await;
                             metrics.components.virtual_chain_processor.last_block = Some(checkpoint_block.clone().into());
+                            metrics.components.virtual_chain_processor.tip_distance = Some(tip_distance as u64);
+                            metrics.components.virtual_chain_processor.tip_distance_timestamp =
+                                dynamic_tip_distance.then_some(tip_distance_timestamp as u64);
+                            metrics.components.virtual_chain_processor.tip_distance_date_time = dynamic_tip_distance
+                                .then_some(DateTime::from_timestamp_millis(tip_distance_timestamp as i64))
+                                .flatten();
                             drop(metrics);
 
                             while checkpoint_queue.push(checkpoint_block.clone()).is_err() {
@@ -88,20 +137,20 @@ pub async fn process_virtual_chain(
                             log_time_to_synced(start_time);
                             synced = true;
                         }
+                        if synced {
+                            sleep(poll_interval.saturating_sub(Instant::now().duration_since(start_request_time))).await;
+                        }
                     }
                     Err(e) => {
                         error!("Failed getting virtual chain from start_hash {}: {}", start_hash.to_string(), e);
-                        sleep(Duration::from_secs(5)).await;
+                        sleep(err_delay).await;
                     }
                 }
             }
             Err(e) => {
                 error!("Failed getting kaspad connection from pool: {}", e);
-                sleep(Duration::from_secs(5)).await
+                sleep(err_delay).await
             }
-        }
-        if synced {
-            sleep(Duration::from_secs(2)).await;
         }
     }
 }
