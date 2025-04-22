@@ -96,6 +96,16 @@ async fn start_processing(cli_args: CliArgs, kaspad_pool: Pool<KaspadManager, Ob
     let net_tps_max = net_bps as u16 * 300;
     info!("Assuming {} block(s) per second for cache sizes", net_bps);
 
+    if let Some(enable) = &cli_args.enable {
+        info!("Enable functionality is set, the following functionality will be enabled: {:?}", enable);
+    }
+    if let Some(disable) = &cli_args.disable {
+        info!("Disable functionality is set, the following functionality will be disabled: {:?}", disable);
+    }
+    if let Some(exclude_fields) = &cli_args.exclude_fields {
+        info!("Exclude fields is set, the following fields will be excluded: {:?}", exclude_fields);
+    }
+
     let mut utxo_set_import = cli_args.is_enabled(CliEnable::ForceUtxoImport);
     let checkpoint: KaspaHash;
     if let Some(ignore_checkpoint) = cli_args.ignore_checkpoint.clone() {
@@ -123,12 +133,7 @@ async fn start_processing(cli_args: CliArgs, kaspad_pool: Pool<KaspadManager, Ob
             warn!("Checkpoint not found, starting from pruning_point {}", checkpoint);
         }
     }
-    if let Some(disable) = &cli_args.disable {
-        info!("Disable functionality is set, the following functionality will be disabled: {:?}", disable);
-    }
-    if let Some(exclude_fields) = &cli_args.exclude_fields {
-        info!("Exclude fields is set, the following fields will be excluded: {:?}", exclude_fields);
-    }
+
     let checkpoint_block = match kaspad_pool.get().await.unwrap().get_block(checkpoint, false).await {
         Ok(block) => Some(CheckpointBlock {
             origin: CheckpointOrigin::Initial,
