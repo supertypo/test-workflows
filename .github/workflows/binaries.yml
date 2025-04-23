@@ -12,12 +12,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.83.0
-          override: true
-          target: x86_64-unknown-linux-gnu
+      - name: Add x86_64 target
+        run: rustup target add x86_64-unknown-linux-gnu
 
       - name: Install dependencies
         run: |
@@ -30,11 +26,11 @@ jobs:
           cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Compress binary
-        run: gzip target/x86_64-unknown-linux-musl/release/simply-kaspa-indexer
+        run: gzip -f target/x86_64-unknown-linux-gnu/release/simply-kaspa-indexer
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v1
         with:
-          files: target/x86_64-unknown-linux-musl/release/simply-kaspa-indexer.gz
+          files: target/x86_64-unknown-linux-gnu/release/simply-kaspa-indexer.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
