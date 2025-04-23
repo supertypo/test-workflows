@@ -1,4 +1,4 @@
-name: Release
+name: Release binaries
 
 on:
   release:
@@ -7,24 +7,27 @@ on:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-C target-feature=-crt-static -C link-args=-s"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust with MUSL target
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          target: x86_64-unknown-linux-musl
+          toolchain: 1.83.0
           override: true
+          target: x86_64-unknown-linux-gnu
 
-      - name: Install musl tools
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y pkg-config libssl-dev libpq-dev gcc
 
-      - name: Build release binary
-        run: cargo build --release --target x86_64-unknown-linux-musl
+      - name: Build binary
+        run: |
+          RUSTFLAGS="-C target-feature=-crt-static -C link-args=-s" \
+          cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Compress binary
         run: gzip target/x86_64-unknown-linux-musl/release/simply-kaspa-indexer
