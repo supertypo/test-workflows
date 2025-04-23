@@ -33,4 +33,4 @@ jobs:
         with:
           files: target/x86_64-unknown-linux-gnu/release/simply-kaspa-indexer.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
